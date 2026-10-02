@@ -2954,7 +2954,7 @@
         
         function getGeminiApiKey() {
             try {
-                const stored = localStorage.getItem('sutradara_gemini_api_key');
+                const stored = localStorage.getItem('trendora_gemini_api_key') || localStorage.getItem('sutradara_gemini_api_key');
                 if (stored && stored.trim()) return stored.trim();
             } catch (_) {}
             if (currentUser && currentUser.role === 'admin') {
@@ -3077,6 +3077,7 @@
                 return;
             }
             try {
+                localStorage.setItem('trendora_gemini_api_key', key);
                 localStorage.setItem('sutradara_gemini_api_key', key);
                 updateApiKeyIndicator();
                 if (notice) {
@@ -3094,6 +3095,7 @@
 
         function removeGeminiApiKey() {
             try {
+                localStorage.removeItem('trendora_gemini_api_key');
                 localStorage.removeItem('sutradara_gemini_api_key');
                 const input = document.getElementById('inputGeminiApiKey');
                 if (input) input.value = '';
