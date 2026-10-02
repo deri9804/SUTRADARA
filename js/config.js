@@ -211,11 +211,187 @@ function removeGeminiApiKey() {
     };
 })();
 
-setTimeout(updateApiKeyIndicator, 500);
+setTimeout(() => {
+    updateApiKeyIndicator();
+    updateN8nIndicator();
+}, 500);
 
-// Konfigurasi n8n Webhook URL
-// Ganti URL ini dengan Production URL atau Test URL dari n8n Webhook Node Anda
-const N8N_WEBHOOK_URL = "https://your-n8n-instance.com/webhook-test/TRENDORA-export"; 
+// =================================================================
+// n8n WEBHOOK INTEGRATION (IMAGE-TO-VIDEO PIPELINE)
+// =================================================================
+function getN8nWebhookUrl() {
+    try {
+        const stored = localStorage.getItem('trendora_n8n_webhook_url') || localStorage.getItem('sutradara_n8n_webhook_url');
+        if (stored && stored.trim()) return stored.trim();
+    } catch (_) {}
+    return '';
+}
+
+function setN8nWebhookUrl(url) {
+    try {
+        if (!url || !url.trim()) {
+            localStorage.removeItem('trendora_n8n_webhook_url');
+            localStorage.removeItem('sutradara_n8n_webhook_url');
+        } else {
+            localStorage.setItem('trendora_n8n_webhook_url', url.trim());
+            localStorage.setItem('sutradara_n8n_webhook_url', url.trim());
+        }
+    } catch (_) {}
+    updateN8nIndicator();
+}
+
+function removeN8nWebhookUrl() {
+    setN8nWebhookUrl('');
+    const input = document.getElementById('inputN8nWebhookUrl');
+    if (input) input.value = '';
+    const notice = document.getElementById('n8nModalNotice');
+    if (notice) {
+        notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/10 border-amber-500/20 block';
+        notice.textContent = 'URL Webhook n8n telah dihapus.';
+    }
+    updateN8nIndicator();
+}
+
+function updateN8nIndicator() {
+    const url = getN8nWebhookUrl();
+    const dot = document.getElementById('n8nStatusDot');
+    if (dot) {
+        if (url) {
+            dot.className = 'w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50';
+            dot.title = 'Webhook n8n Terhubung: ' + url;
+        } else {
+            dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+            dot.title = 'Webhook n8n Belum Diatur';
+        }
+    }
+}
+
+function openN8nModal(noticeMsg) {
+    const modal = document.getElementById('n8nWebhookModal');
+    const input = document.getElementById('inputN8nWebhookUrl');
+    const notice = document.getElementById('n8nModalNotice');
+    if (!modal) return;
+    const currentUrl = getN8nWebhookUrl();
+    if (input) input.value = currentUrl;
+    if (notice) {
+        if (noticeMsg) {
+            notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/10 border-amber-500/20 block';
+            notice.textContent = noticeMsg;
+        } else {
+            notice.className = 'hidden';
+            notice.textContent = '';
+        }
+    }
+    modal.classList.remove('hidden');
+}
+
+function closeN8nModal() {
+    const modal = document.getElementById('n8nWebhookModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function testN8nConnection() {
+    const input = document.getElementById('inputN8nWebhookUrl');
+    const notice = document.getElementById('n8nModalNotice');
+    const btn = document.getElementById('btnTestN8n');
+    const url = (input ? input.value : '').trim();
+
+    if (!url) {
+        if (notice) {
+            notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+            notice.textContent = 'Masukkan URL Webhook n8n terlebih dahulu.';
+        }
+        return;
+    }
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        if (notice) {
+            notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+            notice.textContent = 'URL harus diawali dengan https:// atau http://';
+        }
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin text-emerald-400"></i><span>Menguji...</span>';
+    }
+
+    if (notice) {
+        notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/10 border-emerald-500/20 block';
+        notice.textContent = 'Mengirim sinyal uji coba ke n8n...';
+    }
+
+    try {
+        const testPayload = {
+            event: "test_connection",
+            source: "TRENDORA AI V5.0",
+            message: "Tes koneksi n8n webhook berhasil dari Trendora AI!",
+            timestamp: new Date().toISOString()
+        };
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testPayload)
+        });
+
+        if (res.ok) {
+            if (notice) {
+                notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/15 border-emerald-500/30 block';
+                notice.innerHTML = '<i class="fa-solid fa-circle-check mr-1.5 text-emerald-400"></i><strong>Koneksi Sukses!</strong> n8n merespons dengan status ' + res.status + '.';
+            }
+        } else {
+            if (notice) {
+                notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/15 border-amber-500/30 block';
+                notice.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1.5 text-amber-400"></i>Sinyal terkirim tapi n8n mengembalikan status ' + res.status + '. Pastikan workflow n8n aktif (Active) atau di mode "Listen for test event".';
+            }
+        }
+    } catch (err) {
+        if (notice) {
+            notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/15 border-red-500/30 block';
+            notice.innerHTML = '<i class="fa-solid fa-circle-xmark mr-1.5 text-red-400"></i><strong>Gagal terhubung ke n8n:</strong> ' + (err.message || 'Cek koneksi n8n.') + '<br><span class="text-[10px] text-gray-400 mt-1 block">Catatan: Pastikan n8n mengizinkan CORS jika menggunakan instance self-hosted.</span>';
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-bolt text-emerald-400"></i><span>Tes Koneksi</span>';
+        }
+    }
+}
+
+function saveN8nWebhookFromModal() {
+    const input = document.getElementById('inputN8nWebhookUrl');
+    const notice = document.getElementById('n8nModalNotice');
+    const url = (input ? input.value : '').trim();
+
+    if (!url) {
+        if (notice) {
+            notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+            notice.textContent = 'URL Webhook tidak boleh kosong. Jika ingin menghapus, gunakan tombol ikon tempat sampah di samping.';
+        }
+        return;
+    }
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        if (notice) {
+            notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+            notice.textContent = 'URL harus diawali dengan https:// atau http://';
+        }
+        return;
+    }
+
+    setN8nWebhookUrl(url);
+
+    if (notice) {
+        notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/20 border-emerald-500/40 block';
+        notice.innerHTML = '<i class="fa-solid fa-circle-check mr-1.5 text-emerald-400"></i>URL Webhook n8n berhasil disimpan di browser!';
+    }
+
+    setTimeout(() => {
+        closeN8nModal();
+    }, 900);
+}
 
 function logSupabaseDiagnostics() {
     try {
