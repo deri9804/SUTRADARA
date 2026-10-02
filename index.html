@@ -685,8 +685,15 @@
                 </div>
             </div>
 
-            <!-- Right Area: User Account -->
-            <div class="flex items-center space-x-4">
+            <!-- Right Area: User Account & API Key -->
+            <div class="flex items-center space-x-3">
+                <!-- Gemini API Key Quick Button -->
+                <button onclick="openApiKeyModal()" id="btnHeaderApiKey" title="Atur Gemini API Key" class="flex items-center space-x-2 bg-gradient-to-r from-amber-500/10 to-purple-500/10 hover:from-amber-500/20 hover:to-purple-500/20 text-gray-300 hover:text-white px-3 py-2 rounded-xl border border-white/10 hover:border-amber-400/50 text-xs font-semibold transition-all duration-300 shadow-sm group">
+                    <i class="fa-solid fa-key text-amber-400 group-hover:rotate-12 transition-transform"></i>
+                    <span class="hidden md:inline font-mono">Gemini Key</span>
+                    <span id="apiKeyStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Status Key"></span>
+                </button>
+
                 <div id="userNavMenu" class="relative hidden">
                     <button onclick="toggleUserDropdown()" class="flex items-center space-x-2.5 bg-gradient-to-r from-purple-950/60 to-indigo-950/60 hover:from-purple-900/80 hover:to-indigo-900/80 text-purple-200 px-4 py-2 rounded-xl border border-purple-500/40 hover:border-purple-400/80 text-xs font-semibold transition-all duration-300 shadow-md hover:shadow-purple-500/25 group hover:-translate-y-0.5">
                         <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white text-[11px] shadow-sm ring-1 ring-purple-300/30">
@@ -703,6 +710,9 @@
                         </div>
                         <a href="javascript:void(0)" id="menuAccount" onclick="openAccountModal()" class="flex items-center px-4 py-2.5 text-gray-300 hover:bg-purple-600/20 hover:text-white transition">
                             <i class="fa-solid fa-user-gear mr-2.5 text-purple-400 text-sm"></i>Akun Saya
+                        </a>
+                        <a href="javascript:void(0)" onclick="openApiKeyModal()" class="flex items-center px-4 py-2.5 text-gray-300 hover:bg-amber-500/10 hover:text-amber-300 transition border-t border-white/5">
+                            <i class="fa-solid fa-key mr-2.5 text-amber-400 text-sm"></i>Gemini API Key
                         </a>
                         <div class="border-t border-white/10 my-1"></div>
                         <a href="javascript:void(0)" onclick="handleLogout()" class="flex items-center px-4 py-2.5 text-red-400 hover:bg-red-500/10 transition">
@@ -2858,6 +2868,74 @@
         </div>
     </div>
 
+    <!-- GEMINI API KEY MODAL (Bring Your Own Key) -->
+    <div id="apiKeyModal" class="hidden fixed inset-0 z-[75] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card rounded-3xl p-6 sm:p-7 border border-amber-500/30 max-w-lg w-full space-y-5 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 via-purple-500 to-indigo-500"></div>
+            
+            <div class="flex justify-between items-center border-b border-white/10 pb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300">
+                        <i class="fa-solid fa-key text-base"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-white text-base">Pengaturan Gemini API Key</h3>
+                        <p class="text-[11px] text-gray-400">Gunakan API Key Google AI Studio Anda sendiri (Gratis)</p>
+                    </div>
+                </div>
+                <button onclick="closeApiKeyModal()" class="text-gray-400 hover:text-white text-sm transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Panduan Cepat -->
+            <div class="bg-gradient-to-br from-purple-950/40 to-black/40 border border-purple-500/20 rounded-2xl p-4 text-xs space-y-2">
+                <div class="flex items-center justify-between text-purple-300 font-bold text-[11px] uppercase tracking-wider">
+                    <span><i class="fa-solid fa-circle-info mr-1.5"></i>Cara Ambil API Key Gratis:</span>
+                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" class="text-amber-400 hover:text-amber-300 underline font-semibold flex items-center gap-1">
+                        Buka AI Studio <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                    </a>
+                </div>
+                <ol class="list-decimal list-inside text-gray-300 space-y-1 text-[11px] leading-relaxed">
+                    <li>Buka <strong class="text-white">aistudio.google.com/apikey</strong> dan login akun Google.</li>
+                    <li>Klik tombol <strong class="text-white">"Create API key"</strong>.</li>
+                    <li>Salin (copy) kunci yang didapat, lalu tempel pada kolom di bawah ini.</li>
+                </ol>
+                <p class="text-[10px] text-gray-400 italic pt-1 border-t border-white/5">
+                    💡 Kuota gratis Google: 1.500 request/hari dan di-reset otomatis setiap 24 jam. Kunci Anda tersimpan aman hanya di browser perangkat ini.
+                </p>
+            </div>
+
+            <!-- Input Form -->
+            <div class="space-y-2">
+                <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider">Google Gemini API Key</label>
+                <div class="relative">
+                    <input type="password" id="inputGeminiApiKey" placeholder="Contoh: AQ... atau AIza..." class="w-full glass-input rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 pr-11 font-mono focus:border-amber-400" />
+                    <button type="button" onclick="toggleApiKeyVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-sm px-1 py-1">
+                        <i id="apiKeyEyeIcon" class="fa-solid fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="apiKeyModalNotice" class="hidden text-[11px] p-3 rounded-xl border font-medium"></div>
+
+            <!-- Action Buttons -->
+            <div class="pt-2 flex flex-col sm:flex-row gap-2.5">
+                <button type="button" onclick="testGeminiApiKeyConnection()" id="btnTestApiKey" class="py-2.5 px-4 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 border border-white/10">
+                    <i class="fa-solid fa-bolt text-amber-400"></i>
+                    <span>Tes Koneksi</span>
+                </button>
+                <button type="button" onclick="saveGeminiApiKeyFromModal()" class="flex-1 btn-gradient-primary py-2.5 px-4 text-white font-extrabold text-xs rounded-xl uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span>Simpan API Key</span>
+                </button>
+                <button type="button" onclick="removeGeminiApiKey()" class="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 rounded-xl text-xs font-bold transition" title="Hapus Key">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ================================================================= -->
     <!-- APPLICATION JAVASCRIPT CORE                                       -->
     <!-- ================================================================= -->
@@ -2869,14 +2947,163 @@
         const SUPABASE_URL = "https://inixcxbvfyvmuuzlkljq.supabase.co";
         const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ozGrENkmrJH48KSWov2BIw_2f13d_qH";
         
-        // Google Gemini API Configuration
-        const _DEFAULT_GEMINI_KEY = atob("QVEuQWI4Uk42S0gycXZxYjE5YXBqLTBBSE1PNTZNc2gxc0llLVY3V29vZHRiOEVJY1JFN1E=");
+        // =================================================================
+        // GOOGLE GEMINI API (BYOK - BRING YOUR OWN KEY SYSTEM)
+        // =================================================================
+        const _DEFAULT_OWNER_KEY = atob("QVEuQWI4Uk42S0gycXZxYjE5YXBqLTBBSE1PNTZNc2gxc0llLVY3V29vZHRiOEVJY1JFN1E=");
+        
         function getGeminiApiKey() {
             try {
                 const stored = localStorage.getItem('sutradara_gemini_api_key');
                 if (stored && stored.trim()) return stored.trim();
             } catch (_) {}
-            return _DEFAULT_GEMINI_KEY;
+            if (currentUser && currentUser.role === 'admin') {
+                return _DEFAULT_OWNER_KEY;
+            }
+            return '';
+        }
+
+        function updateApiKeyIndicator() {
+            const key = getGeminiApiKey();
+            const dot = document.getElementById('apiKeyStatusDot');
+            if (dot) {
+                if (key) {
+                    dot.className = 'w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50';
+                    dot.title = 'API Key Terhubung';
+                } else {
+                    dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+                    dot.title = 'API Key Belum Diatur';
+                }
+            }
+        }
+
+        function openApiKeyModal(noticeMsg) {
+            const modal = document.getElementById('apiKeyModal');
+            const input = document.getElementById('inputGeminiApiKey');
+            const notice = document.getElementById('apiKeyModalNotice');
+            if (!modal) return;
+            const currentKey = (function() {
+                try { return localStorage.getItem('sutradara_gemini_api_key') || ''; } catch (_) { return ''; }
+            })();
+            if (input) input.value = currentKey;
+            if (notice) {
+                if (noticeMsg) {
+                    notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/10 border-amber-500/20 block';
+                    notice.textContent = noticeMsg;
+                } else {
+                    notice.className = 'hidden';
+                    notice.textContent = '';
+                }
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function toggleApiKeyVisibility() {
+            const input = document.getElementById('inputGeminiApiKey');
+            const icon = document.getElementById('apiKeyEyeIcon');
+            if (!input || !icon) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+            }
+        }
+
+        async function testGeminiApiKeyConnection() {
+            const input = document.getElementById('inputGeminiApiKey');
+            const notice = document.getElementById('apiKeyModalNotice');
+            const btn = document.getElementById('btnTestApiKey');
+            const key = input ? input.value.trim() : '';
+            if (!key) {
+                if (notice) {
+                    notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+                    notice.textContent = 'Masukkan API Key terlebih dahulu untuk melakukan tes.';
+                }
+                return;
+            }
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Mengetes...';
+            }
+            try {
+                const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(key);
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] })
+                });
+                const data = await res.json();
+                if (res.ok && data.candidates) {
+                    if (notice) {
+                        notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/10 border-emerald-500/20 block';
+                        notice.textContent = '✅ API Key Valid! Koneksi ke Google Gemini AI berhasil.';
+                    }
+                } else {
+                    const errMsg = (data && data.error && data.error.message) ? data.error.message : 'HTTP ' + res.status;
+                    if (notice) {
+                        notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+                        notice.textContent = '❌ API Key Ditolak: ' + errMsg;
+                    }
+                }
+            } catch (err) {
+                if (notice) {
+                    notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+                    notice.textContent = '❌ Gagal terhubung: ' + err.message;
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-bolt text-amber-400"></i> <span>Tes Koneksi</span>';
+                }
+            }
+        }
+
+        function saveGeminiApiKeyFromModal() {
+            const input = document.getElementById('inputGeminiApiKey');
+            const notice = document.getElementById('apiKeyModalNotice');
+            const key = input ? input.value.trim() : '';
+            if (!key) {
+                if (notice) {
+                    notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+                    notice.textContent = 'API Key tidak boleh kosong.';
+                }
+                return;
+            }
+            try {
+                localStorage.setItem('sutradara_gemini_api_key', key);
+                updateApiKeyIndicator();
+                if (notice) {
+                    notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/10 border-emerald-500/20 block';
+                    notice.textContent = '✅ Berhasil! API Key Anda tersimpan aman di browser ini.';
+                }
+                setTimeout(() => { closeApiKeyModal(); }, 1200);
+            } catch (e) {
+                if (notice) {
+                    notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+                    notice.textContent = 'Gagal menyimpan ke penyimpanan lokal browser.';
+                }
+            }
+        }
+
+        function removeGeminiApiKey() {
+            try {
+                localStorage.removeItem('sutradara_gemini_api_key');
+                const input = document.getElementById('inputGeminiApiKey');
+                if (input) input.value = '';
+                updateApiKeyIndicator();
+                const notice = document.getElementById('apiKeyModalNotice');
+                if (notice) {
+                    notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/10 border-amber-500/20 block';
+                    notice.textContent = 'API Key telah dihapus dari perangkat ini.';
+                }
+            } catch (e) {}
         }
 
         // Global Fetch Hook: automatically attach Google Gemini API Key to all generativelanguage calls
@@ -2887,37 +3114,44 @@
                     let urlStr = (typeof resource === 'string') ? resource : (resource && resource.url ? resource.url : '');
                     if (urlStr && urlStr.includes('generativelanguage.googleapis.com')) {
                         const apiKey = getGeminiApiKey();
-                        if (apiKey) {
-                            init = init || {};
-                            let headers = init.headers;
-                            if (!headers) {
-                                headers = {};
-                                init.headers = headers;
-                            }
-                            if (headers instanceof Headers) {
-                                if (!headers.has('x-goog-api-key')) headers.set('x-goog-api-key', apiKey);
-                            } else if (Array.isArray(headers)) {
-                                if (!headers.some(([k]) => k.toLowerCase() === 'x-goog-api-key')) headers.push(['x-goog-api-key', apiKey]);
-                            } else {
-                                if (!headers['x-goog-api-key'] && !headers['X-Goog-Api-Key']) headers['x-goog-api-key'] = apiKey;
-                            }
-                            if (!urlStr.includes('key=')) {
-                                const sep = urlStr.includes('?') ? '&' : '?';
-                                urlStr = urlStr + sep + 'key=' + encodeURIComponent(apiKey);
-                                if (typeof resource === 'string') {
-                                    resource = urlStr;
-                                } else if (resource && resource.url) {
-                                    resource = new Request(urlStr, init);
-                                }
+                        if (!apiKey) {
+                            openApiKeyModal('Silakan masukkan Gemini API Key gratis Anda terlebih dahulu untuk mulai membuat video / storyboard.');
+                            const noKeyErr = new Error('Gemini API Key belum diatur. Silakan masukkan API Key Anda di menu atas.');
+                            noKeyErr.permanent = true;
+                            throw noKeyErr;
+                        }
+                        init = init || {};
+                        let headers = init.headers;
+                        if (!headers) {
+                            headers = {};
+                            init.headers = headers;
+                        }
+                        if (headers instanceof Headers) {
+                            if (!headers.has('x-goog-api-key')) headers.set('x-goog-api-key', apiKey);
+                        } else if (Array.isArray(headers)) {
+                            if (!headers.some(([k]) => k.toLowerCase() === 'x-goog-api-key')) headers.push(['x-goog-api-key', apiKey]);
+                        } else {
+                            if (!headers['x-goog-api-key'] && !headers['X-Goog-Api-Key']) headers['x-goog-api-key'] = apiKey;
+                        }
+                        if (!urlStr.includes('key=')) {
+                            const sep = urlStr.includes('?') ? '&' : '?';
+                            urlStr = urlStr + sep + 'key=' + encodeURIComponent(apiKey);
+                            if (typeof resource === 'string') {
+                                resource = urlStr;
+                            } else if (resource && resource.url) {
+                                resource = new Request(urlStr, init);
                             }
                         }
                     }
                 } catch (e) {
+                    if (e.message && e.message.includes('Gemini API Key')) throw e;
                     console.warn('[Gemini Interceptor Error]', e);
                 }
                 return originalFetch.call(this, resource, init);
             };
         })();
+
+        setTimeout(updateApiKeyIndicator, 500);
         
         // Konfigurasi n8n Webhook URL
         // Ganti URL ini dengan Production URL atau Test URL dari n8n Webhook Node Anda
