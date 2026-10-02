@@ -2869,6 +2869,56 @@
         const SUPABASE_URL = "https://inixcxbvfyvmuuzlkljq.supabase.co";
         const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ozGrENkmrJH48KSWov2BIw_2f13d_qH";
         
+        // Google Gemini API Configuration
+        const _DEFAULT_GEMINI_KEY = atob("QVEuQWI4Uk42S0gycXZxYjE5YXBqLTBBSE1PNTZNc2gxc0llLVY3V29vZHRiOEVJY1JFN1E=");
+        function getGeminiApiKey() {
+            try {
+                const stored = localStorage.getItem('sutradara_gemini_api_key');
+                if (stored && stored.trim()) return stored.trim();
+            } catch (_) {}
+            return _DEFAULT_GEMINI_KEY;
+        }
+
+        // Global Fetch Hook: automatically attach Google Gemini API Key to all generativelanguage calls
+        (function initGeminiFetchInterceptor() {
+            const originalFetch = window.fetch;
+            window.fetch = async function(resource, init) {
+                try {
+                    let urlStr = (typeof resource === 'string') ? resource : (resource && resource.url ? resource.url : '');
+                    if (urlStr && urlStr.includes('generativelanguage.googleapis.com')) {
+                        const apiKey = getGeminiApiKey();
+                        if (apiKey) {
+                            init = init || {};
+                            let headers = init.headers;
+                            if (!headers) {
+                                headers = {};
+                                init.headers = headers;
+                            }
+                            if (headers instanceof Headers) {
+                                if (!headers.has('x-goog-api-key')) headers.set('x-goog-api-key', apiKey);
+                            } else if (Array.isArray(headers)) {
+                                if (!headers.some(([k]) => k.toLowerCase() === 'x-goog-api-key')) headers.push(['x-goog-api-key', apiKey]);
+                            } else {
+                                if (!headers['x-goog-api-key'] && !headers['X-Goog-Api-Key']) headers['x-goog-api-key'] = apiKey;
+                            }
+                            if (!urlStr.includes('key=')) {
+                                const sep = urlStr.includes('?') ? '&' : '?';
+                                urlStr = urlStr + sep + 'key=' + encodeURIComponent(apiKey);
+                                if (typeof resource === 'string') {
+                                    resource = urlStr;
+                                } else if (resource && resource.url) {
+                                    resource = new Request(urlStr, init);
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Gemini Interceptor Error]', e);
+                }
+                return originalFetch.call(this, resource, init);
+            };
+        })();
+        
         // Konfigurasi n8n Webhook URL
         // Ganti URL ini dengan Production URL atau Test URL dari n8n Webhook Node Anda
         const N8N_WEBHOOK_URL = "https://your-n8n-instance.com/webhook-test/TRENDORA-export"; 
@@ -10174,7 +10224,15 @@ Use ${config.language || 'Bahasa Indonesia'} for visible marketing text. Keep te
                     const response = await fetchWithTimeout(url, options, timeoutMs || 30000);
                     if (response.ok) return response;
                     if ([400, 401, 403, 404].includes(response.status)) {
-                        const error = new Error("Gemini request rejected (" + response.status + ")");
+                        const body = await response.text().catch(() => '');
+                        let msg = "Gemini request rejected (" + response.status + ")";
+                        try {
+                            const parsed = JSON.parse(body);
+                            if (parsed && parsed.error && parsed.error.message) msg += ": " + parsed.error.message;
+                        } catch (_) {
+                            if (body) msg += ": " + body.slice(0, 150);
+                        }
+                        const error = new Error(msg);
                         error.status = response.status;
                         error.permanent = true;
                         throw error;
