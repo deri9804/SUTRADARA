@@ -7457,10 +7457,11 @@ async function renderStoryboardResults(breakdown, cachedImages) {
                 </div>
             </div>
 
-            <div class="flex justify-center gap-2 mb-6">
+            <div class="flex justify-center gap-2 mb-6 flex-wrap">
                 <button id="btnEditScene_${idx}" onclick="openSceneImageEditModal(${idx})" ${cachedImages?.[idx] ? '' : 'disabled'} class="scene-action-btn px-4 py-2 bg-pink-600/30 hover:bg-pink-600/50 text-pink-200 text-xs font-bold rounded-xl border border-pink-500/40 transition"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Edit Gambar Adegan</button>
                 <button id="btnRegenerateScene_${idx}" onclick="regenerateSceneImage(${idx})" ${cachedImages?.[idx] ? '' : 'disabled'} class="scene-action-btn px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 text-xs font-bold rounded-xl border border-purple-500/40 transition"><i class="fa-solid fa-arrows-rotate mr-1"></i>Generate Ulang</button>
                 <button id="downloadImgBtn_${idx}" onclick="downloadSceneImage(${idx})" class="hidden px-4 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-200 text-xs font-bold rounded-xl border border-cyan-500/40 transition"><i class="fa-solid fa-download mr-1"></i>Download Gambar</button>
+                <button id="btnRenderSceneN8n_${idx}" onclick="renderSceneToN8n(${idx})" class="scene-action-btn px-4 py-2 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 text-xs font-bold rounded-xl border border-emerald-500/40 transition flex items-center gap-1.5"><i class="fa-solid fa-film text-emerald-400"></i><span>Render Video (n8n)</span></button>
             </div>
 
             <!-- Image & Video Prompts (Compact 2-col on desktop) -->
@@ -9093,59 +9094,165 @@ function startNewStoryboard() {
     updateSummaryPill();
 }
 
-/* --- INTEGRASI n8n WEBHOOK --- */
-async function sendDataToN8n() {
-    if (!state.directorData) {
-        showCanvasNotice("Belum ada data storyboard untuk dikirim ke n8n!", "error");
+/* ================================================================= */
+/* PIPELINE IMAGE-TO-VIDEO: INTEGRASI n8n WEBHOOK                   */
+/* ================================================================= */
+function buildScenePayloadForN8n(sceneIdx) {
+    if (sceneIdx < 0 || !state.directorData?.scenes?.[sceneIdx]) return null;
+    const scene = state.directorData.scenes[sceneIdx];
+    const imagePromptText = (document.getElementById('masterImagePrompt_' + sceneIdx)?.value || scene.masterImagePrompt || '').trim();
+    const videoPromptText = (document.getElementById('masterVideoPrompt_' + sceneIdx)?.value || scene.promptVideo || scene.camera_movement || '').trim();
+    const dialogueText = (document.getElementById('dialogueText_' + sceneIdx)?.value || scene.dialogueOrNarration || '').trim();
+    const imageDataUrl = getSceneImageDataUrl(sceneIdx) || '';
+
+    return {
+        scene_number: scene.sceneNumber || (sceneIdx + 1),
+        scene_index: sceneIdx,
+        visual_goal: scene.visualGoal || '',
+        image_prompt: imagePromptText,
+        video_prompt: videoPromptText,
+        dialogue_or_narration: dialogueText,
+        image_data: imageDataUrl,
+        has_image: Boolean(imageDataUrl && imageDataUrl.startsWith('data:image/')),
+        duration: state.durationPerScene || '5s',
+        aspect_ratio: state.aspectRatio || '16:9'
+    };
+}
+
+async function renderSceneToN8n(sceneIdx) {
+    const webhookUrl = getN8nWebhookUrl();
+    if (!webhookUrl) {
+        openN8nModal('Silakan masukkan dan simpan URL Webhook n8n Anda terlebih dahulu.');
         return;
     }
 
-    const btn = document.getElementById('btnSendN8n');
-    const originalHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Mengirim...</span>`;
-    
+    const sceneData = buildScenePayloadForN8n(sceneIdx);
+    if (!sceneData) {
+        showCanvasNotice('Data scene tidak ditemukan.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById(`btnRenderSceneN8n_${sceneIdx}`);
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Mengirim ke n8n...</span>`;
+    }
+
     try {
-        // Menyiapkan payload data yang akan dikirim ke n8n
         const payload = {
-            action: "export_storyboard",
+            event: "render_scene_video",
+            project_title: state.story || "Trendora AI Storyboard",
+            mode: state.storyboardMode || "commercial",
+            style: state.visualStyle || "Auto",
+            episode: state.currentEpisode || 1,
+            scene: sceneData,
             user: {
-                name: currentUser.name,
-                email: currentUser.email
+                name: (typeof currentUser !== 'undefined' && currentUser?.name) ? currentUser.name : "Member",
+                email: (typeof currentUser !== 'undefined' && currentUser?.email) ? currentUser.email : ""
             },
-            project: {
-                story_idea: state.story,
-                mode: state.storyboardMode,
-                style: state.visualStyle,
-                audio_mode: state.audioMode,
-                aspect_ratio: state.aspectRatio,
-                episode: state.currentEpisode
-            },
-            director_data: state.directorData,
             timestamp: new Date().toISOString()
         };
 
-        const response = await fetch(N8N_WEBHOOK_URL, {
+        const res = await fetch(webhookUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        if (!res.ok) {
+            throw new Error(`HTTP error status ${res.status}`);
         }
 
-        showCanvasNotice("Berhasil mengirim data proyek ke n8n!", "success");
-    } catch (error) {
-        console.error("n8n Error:", error);
-        showCanvasNotice("Gagal mengirim ke n8n. Pastikan URL Webhook valid dan n8n sedang aktif. " + error.message, "error");
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalHtml;
+        showCanvasNotice(`Scene ${sceneData.scene_number} berhasil dikirim ke n8n untuk render video!`, 'success');
+        if (btn) {
+            btn.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-300"></i><span>Terkirim ke n8n!</span>`;
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }, 3000);
+        }
+    } catch (err) {
+        console.error("n8n Scene Render Error:", err);
+        showCanvasNotice(`Gagal mengirim Scene ke n8n: ${err.message}. Pastikan webhook n8n aktif.`, 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
     }
 }
+
+async function renderAllScenesToN8n() {
+    const webhookUrl = getN8nWebhookUrl();
+    if (!webhookUrl) {
+        openN8nModal('Silakan masukkan dan simpan URL Webhook n8n Anda terlebih dahulu.');
+        return;
+    }
+
+    if (!state.directorData || !state.directorData.scenes || state.directorData.scenes.length === 0) {
+        showCanvasNotice('Belum ada data storyboard untuk dikirim ke n8n!', 'error');
+        return;
+    }
+
+    const scenes = state.directorData.scenes;
+    const scenesPayload = scenes.map((_, idx) => buildScenePayloadForN8n(idx)).filter(Boolean);
+
+    const btn = document.getElementById('btnSendN8nAll') || document.getElementById('btnSendN8n');
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Mengirim ${scenesPayload.length} Scene...</span>`;
+    }
+
+    try {
+        const payload = {
+            event: "render_full_storyboard",
+            project_title: state.story || "Trendora AI Storyboard",
+            mode: state.storyboardMode || "commercial",
+            style: state.visualStyle || "Auto",
+            audio_mode: state.audioMode || "Voiceover",
+            aspect_ratio: state.aspectRatio || "16:9",
+            duration_per_scene: state.durationPerScene || "5s",
+            episode: state.currentEpisode || 1,
+            total_scenes: scenesPayload.length,
+            scenes: scenesPayload,
+            user: {
+                name: (typeof currentUser !== 'undefined' && currentUser?.name) ? currentUser.name : "Member",
+                email: (typeof currentUser !== 'undefined' && currentUser?.email) ? currentUser.email : ""
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        const res = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            throw new Error(`HTTP error status ${res.status}`);
+        }
+
+        showCanvasNotice(`Semua scene (${scenesPayload.length} scene) berhasil dikirim ke n8n untuk render video!`, 'success');
+        if (btn) {
+            btn.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-300"></i><span>Terkirim ke n8n!</span>`;
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }, 3000);
+        }
+    } catch (err) {
+        console.error("n8n Full Render Error:", err);
+        showCanvasNotice(`Gagal mengirim ke n8n: ${err.message}. Pastikan webhook n8n aktif.`, 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+}
+
+// Backward compatibility alias
+const sendDataToN8n = renderAllScenesToN8n;
 
 async function restoreHistoryRecord(id) {
     const record = await getHistoryRecord(id); if (!record) return;
