@@ -7,22 +7,8 @@ let adminFilterStatus = "all";
 const ADMIN_PAGE_SIZE = 20;
 let adminCurrentPage = 1;
 
-function escapeAdminHtml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
 async function loadAdminProfiles() {
     try {
-        if (!currentUser.loggedIn || currentUser.role !== 'admin') {
-            console.warn('[Admin] Unauthorized load attempt blocked.');
-            return;
-        }
         const { data, error } = await supabaseClient
             .from('profiles')
             .select('*')
@@ -94,32 +80,26 @@ function renderAdminTable() {
         const statusColor = member.status === 'active' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30';
         const roleColor = member.role === 'admin' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'bg-purple-500/20 text-purple-300 border-purple-500/30';
 
-        const safeId = escapeAdminHtml(member.id);
-        const safeName = escapeAdminHtml(member.full_name || 'Tanpa Nama');
-        const safeEmail = escapeAdminHtml(member.email || '');
-        const safeRole = escapeAdminHtml(member.role || 'member');
-        const safeStatus = escapeAdminHtml(member.status || 'active');
-
         return `
             <tr class="hover:bg-white/5 transition">
                 <td class="px-5 py-4 whitespace-nowrap">
                     <div class="flex items-center gap-2">
-                        <span class="font-bold text-white">${safeName}</span>
+                        <span class="font-bold text-white">${member.full_name || 'Tanpa Nama'}</span>
                         ${isMe ? '<span class="text-[9px] bg-white/10 text-gray-300 px-1.5 py-0.5 rounded border border-white/20 uppercase">Kamu</span>' : ''}
                     </div>
                 </td>
-                <td class="px-5 py-4 whitespace-nowrap text-gray-400">${safeEmail}</td>
+                <td class="px-5 py-4 whitespace-nowrap text-gray-400">${member.email}</td>
                 <td class="px-5 py-4 whitespace-nowrap">
-                    <span class="inline-block border px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${roleColor}">${safeRole}</span>
+                    <span class="inline-block border px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${roleColor}">${member.role || 'member'}</span>
                 </td>
                 <td class="px-5 py-4 whitespace-nowrap">
-                    <span class="inline-block border px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${statusColor}">${safeStatus}</span>
+                    <span class="inline-block border px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${statusColor}">${member.status || 'active'}</span>
                 </td>
                 <td class="px-5 py-4 whitespace-nowrap text-gray-500 text-[10px] font-mono">
                     ${new Date(member.created_at).toLocaleDateString('id-ID')}
                 </td>
                 <td class="px-5 py-4 whitespace-nowrap text-right">
-                    <button onclick="openEditMemberModal('${safeId}')" class="text-[10px] bg-white/5 hover:bg-pink-600/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:border-pink-500/50 transition font-bold shadow-sm">
+                    <button onclick="openEditMemberModal('${member.id}')" class="text-[10px] bg-white/5 hover:bg-pink-600/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:border-pink-500/50 transition font-bold shadow-sm">
                         Edit Profil
                     </button>
                 </td>

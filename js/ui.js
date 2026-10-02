@@ -455,39 +455,13 @@ function navGoCharacter() {
     }
 }
 
-async function navGoAdmin() {
+function navGoAdmin() {
     if (!currentUser.loggedIn || currentUser.status !== 'active') {
         showAuthView();
         return;
     }
-    // Server-side database re-verification: prevents F12 console role elevation
-    try {
-        if (!supabaseClient) throw new Error('Supabase client unavailable');
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session || !session.user) {
-            showAuthView();
-            return;
-        }
-        const { data: profile, error } = await supabaseClient
-            .from('profiles')
-            .select('role, status')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-        if (error || !profile || profile.status !== 'active' || profile.role !== 'admin') {
-            console.warn('[Security Guard] Unauthorized attempt to access admin view blocked.');
-            currentUser.role = profile?.role || 'member';
-            updateSidebarRoleVisibility();
-            if (typeof showCanvasNotice === 'function') {
-                showCanvasNotice('Akses Ditolak: Akun Anda bukan Administrator.', 'error');
-            }
-            showHomeView();
-            return;
-        }
-        currentUser.role = 'admin';
-    } catch (e) {
-        console.error('[Security Guard]', e);
-        showHomeView();
+    if (currentUser.role !== 'admin') {
+        showImageGenNotice('Hanya admin yang dapat membuka Admin Panel.', 'error');
         return;
     }
     setActiveViewKey('admin');

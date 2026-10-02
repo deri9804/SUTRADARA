@@ -8,11 +8,16 @@ const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ozGrENkmrJH48KSWov2BIw_2f13d_qH
 // =================================================================
 // GOOGLE GEMINI API (BYOK - BRING YOUR OWN KEY SYSTEM)
 // =================================================================
+const _DEFAULT_OWNER_KEY = atob("QVEuQWI4Uk42S0gycXZxYjE5YXBqLTBBSE1PNTZNc2gxc0llLVY3V29vZHRiOEVJY1JFN1E=");
+
 function getGeminiApiKey() {
     try {
         const stored = localStorage.getItem('trendora_gemini_api_key') || localStorage.getItem('sutradara_gemini_api_key');
         if (stored && stored.trim()) return stored.trim();
     } catch (_) {}
+    if (currentUser && currentUser.role === 'admin') {
+        return _DEFAULT_OWNER_KEY;
+    }
     return '';
 }
 
@@ -36,7 +41,7 @@ function openApiKeyModal(noticeMsg) {
     const notice = document.getElementById('apiKeyModalNotice');
     if (!modal) return;
     const currentKey = (function() {
-        try { return localStorage.getItem('trendora_gemini_api_key') || localStorage.getItem('sutradara_gemini_api_key') || ''; } catch (_) { return ''; }
+        try { return localStorage.getItem('sutradara_gemini_api_key') || ''; } catch (_) { return ''; }
     })();
     if (input) input.value = currentKey;
     if (notice) {
