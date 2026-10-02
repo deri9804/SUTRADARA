@@ -101,8 +101,6 @@ async function handleSupabaseUserSession(user) {
 
         await loadMemberSettings(user.id);
         updateUserHeaderUI();
-        updateApiKeyIndicator();
-        updateN8nIndicator();
         try {
             await renderUnifiedHistoryView();
         } catch (e) {
@@ -594,12 +592,6 @@ function resetUserSession() {
     currentUser.role = "member";
     currentUser.loggedIn = false;
     updateUserHeaderUI();
-    const keyInput = document.getElementById('inputGeminiApiKey');
-    if (keyInput) keyInput.value = '';
-    const n8nInput = document.getElementById('inputN8nWebhookUrl');
-    if (n8nInput) n8nInput.value = '';
-    updateApiKeyIndicator();
-    updateN8nIndicator();
 }
 
 /* ----------------------------------------------------------------- */
