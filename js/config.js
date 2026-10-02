@@ -6,12 +6,95 @@ const SUPABASE_URL = "https://inixcxbvfyvmuuzlkljq.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ozGrENkmrJH48KSWov2BIw_2f13d_qH";
 
 // =================================================================
+// CURRENT USER STATE (Shared globally across modules)
+// =================================================================
+const currentUser = {
+    userId: null,
+    name: "Member",
+    email: null,
+    role: "member",
+    status: "active",
+    loggedIn: false
+};
+
+// Helper to determine the currently active user ID (from memory or Supabase session)
+function getActiveUserId() {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.userId) {
+        return currentUser.userId;
+    }
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+                const val = localStorage.getItem(k);
+                if (val) {
+                    const parsed = JSON.parse(val);
+                    const uid = parsed?.user?.id || parsed?.id;
+                    if (uid) return uid;
+                }
+            }
+        }
+    } catch (_) {}
+    return null;
+}
+
+// Helper to determine the currently active user email
+function getActiveUserEmail() {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.email) {
+        return String(currentUser.email).toLowerCase();
+    }
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+                const val = localStorage.getItem(k);
+                if (val) {
+                    const parsed = JSON.parse(val);
+                    const email = parsed?.user?.email;
+                    if (email) return String(email).toLowerCase();
+                }
+            }
+        }
+    } catch (_) {}
+    return '';
+}
+
+// Check if currently active user is the owner/creator (Deri Pernandi)
+function isOwnerUser() {
+    const email = getActiveUserEmail();
+    const role = (typeof currentUser !== 'undefined' && currentUser && currentUser.role) ? currentUser.role : '';
+    return Boolean(email && (email.includes('deripernandi') || email.includes('deri'))) || role === 'admin';
+}
+
+// =================================================================
 // GOOGLE GEMINI API (BYOK - BRING YOUR OWN KEY SYSTEM)
 // =================================================================
 function getGeminiApiKey() {
+    const uid = getActiveUserId();
+    const isOwner = isOwnerUser();
+    if (!uid) return '';
+
     try {
-        const stored = localStorage.getItem('trendora_gemini_api_key') || localStorage.getItem('sutradara_gemini_api_key');
-        if (stored && stored.trim()) return stored.trim();
+        const legacy = (localStorage.getItem('trendora_gemini_api_key') || localStorage.getItem('sutradara_gemini_api_key') || '').trim();
+        let userKey = (localStorage.getItem('trendora_gemini_api_key_' + uid) || '').trim();
+
+        // If non-owner user has a key matching the legacy key, or is a member test account (e.g. Wisnu), purge it
+        if (!isOwner) {
+            if ((legacy && userKey === legacy) || getActiveUserEmail().includes('wisnu')) {
+                localStorage.removeItem('trendora_gemini_api_key_' + uid);
+                userKey = '';
+            }
+        }
+
+        if (userKey) return userKey;
+
+        // Migration for owner Deri Pernandi only
+        if (isOwner && legacy) {
+            localStorage.setItem('trendora_gemini_api_key_' + uid, legacy);
+            localStorage.removeItem('trendora_gemini_api_key');
+            localStorage.removeItem('sutradara_gemini_api_key');
+            return legacy;
+        }
     } catch (_) {}
     return '';
 }
@@ -35,9 +118,7 @@ function openApiKeyModal(noticeMsg) {
     const input = document.getElementById('inputGeminiApiKey');
     const notice = document.getElementById('apiKeyModalNotice');
     if (!modal) return;
-    const currentKey = (function() {
-        try { return localStorage.getItem('trendora_gemini_api_key') || localStorage.getItem('sutradara_gemini_api_key') || ''; } catch (_) { return ''; }
-    })();
+    const currentKey = getGeminiApiKey();
     if (input) input.value = currentKey;
     if (notice) {
         if (noticeMsg) {
@@ -119,6 +200,7 @@ async function testGeminiApiKeyConnection() {
 }
 
 function saveGeminiApiKeyFromModal() {
+    const uid = getActiveUserId();
     const input = document.getElementById('inputGeminiApiKey');
     const notice = document.getElementById('apiKeyModalNotice');
     const key = input ? input.value.trim() : '';
@@ -129,13 +211,22 @@ function saveGeminiApiKeyFromModal() {
         }
         return;
     }
+    if (!uid) {
+        if (notice) {
+            notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+            notice.textContent = 'Silakan login terlebih dahulu untuk menyimpan API Key.';
+        }
+        return;
+    }
     try {
-        localStorage.setItem('trendora_gemini_api_key', key);
-        localStorage.setItem('sutradara_gemini_api_key', key);
+        localStorage.setItem('trendora_gemini_api_key_' + uid, key);
+        // Purge old unscoped keys to prevent cross-account leakage
+        localStorage.removeItem('trendora_gemini_api_key');
+        localStorage.removeItem('sutradara_gemini_api_key');
         updateApiKeyIndicator();
         if (notice) {
             notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/10 border-emerald-500/20 block';
-            notice.textContent = '✅ Berhasil! API Key Anda tersimpan aman di browser ini.';
+            notice.textContent = '✅ Berhasil! API Key Anda tersimpan aman khusus untuk akun Anda di browser ini.';
         }
         setTimeout(() => { closeApiKeyModal(); }, 1200);
     } catch (e) {
@@ -147,7 +238,11 @@ function saveGeminiApiKeyFromModal() {
 }
 
 function removeGeminiApiKey() {
+    const uid = getActiveUserId();
     try {
+        if (uid) {
+            localStorage.removeItem('trendora_gemini_api_key_' + uid);
+        }
         localStorage.removeItem('trendora_gemini_api_key');
         localStorage.removeItem('sutradara_gemini_api_key');
         const input = document.getElementById('inputGeminiApiKey');
@@ -156,7 +251,7 @@ function removeGeminiApiKey() {
         const notice = document.getElementById('apiKeyModalNotice');
         if (notice) {
             notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/10 border-amber-500/20 block';
-            notice.textContent = 'API Key telah dihapus dari perangkat ini.';
+            notice.textContent = 'API Key telah dihapus dari akun Anda di perangkat ini.';
         }
     } catch (e) {}
 }
@@ -215,34 +310,56 @@ setTimeout(() => {
 // n8n WEBHOOK INTEGRATION (IMAGE-TO-VIDEO PIPELINE)
 // =================================================================
 function getN8nWebhookUrl() {
+    const uid = getActiveUserId();
+    const isOwner = isOwnerUser();
+    if (!uid) return '';
     try {
-        const stored = localStorage.getItem('trendora_n8n_webhook_url') || localStorage.getItem('sutradara_n8n_webhook_url');
-        if (stored && stored.trim()) return stored.trim();
+        const userUrl = localStorage.getItem('trendora_n8n_webhook_url_' + uid);
+        if (userUrl && userUrl.trim()) return userUrl.trim();
+
+        // Migration for owner only
+        const legacy = localStorage.getItem('trendora_n8n_webhook_url') || localStorage.getItem('sutradara_n8n_webhook_url');
+        if (isOwner && legacy && legacy.trim()) {
+            const urlVal = legacy.trim();
+            localStorage.setItem('trendora_n8n_webhook_url_' + uid, urlVal);
+            localStorage.removeItem('trendora_n8n_webhook_url');
+            localStorage.removeItem('sutradara_n8n_webhook_url');
+            return urlVal;
+        }
     } catch (_) {}
     return '';
 }
 
 function setN8nWebhookUrl(url) {
+    const uid = getActiveUserId();
     try {
+        if (!uid) return;
         if (!url || !url.trim()) {
-            localStorage.removeItem('trendora_n8n_webhook_url');
-            localStorage.removeItem('sutradara_n8n_webhook_url');
+            localStorage.removeItem('trendora_n8n_webhook_url_' + uid);
         } else {
-            localStorage.setItem('trendora_n8n_webhook_url', url.trim());
-            localStorage.setItem('sutradara_n8n_webhook_url', url.trim());
+            localStorage.setItem('trendora_n8n_webhook_url_' + uid, url.trim());
         }
+        localStorage.removeItem('trendora_n8n_webhook_url');
+        localStorage.removeItem('sutradara_n8n_webhook_url');
     } catch (_) {}
     updateN8nIndicator();
 }
 
 function removeN8nWebhookUrl() {
-    setN8nWebhookUrl('');
+    const uid = getActiveUserId();
+    try {
+        if (uid) {
+            localStorage.removeItem('trendora_n8n_webhook_url_' + uid);
+        }
+        localStorage.removeItem('trendora_n8n_webhook_url');
+        localStorage.removeItem('sutradara_n8n_webhook_url');
+    } catch (_) {}
     const input = document.getElementById('inputN8nWebhookUrl');
     if (input) input.value = '';
     const notice = document.getElementById('n8nModalNotice');
     if (notice) {
         notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/10 border-amber-500/20 block';
-        notice.textContent = 'URL Webhook n8n telah dihapus.';
+        notice.textContent = 'URL Webhook n8n telah dihapus dari akun Anda.';
     }
     updateN8nIndicator();
 }
@@ -356,6 +473,7 @@ async function testN8nConnection() {
 }
 
 function saveN8nWebhookFromModal() {
+    const uid = getActiveUserId();
     const input = document.getElementById('inputN8nWebhookUrl');
     const notice = document.getElementById('n8nModalNotice');
     const url = (input ? input.value : '').trim();
@@ -364,6 +482,14 @@ function saveN8nWebhookFromModal() {
         if (notice) {
             notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
             notice.textContent = 'URL Webhook tidak boleh kosong. Jika ingin menghapus, gunakan tombol ikon tempat sampah di samping.';
+        }
+        return;
+    }
+
+    if (!uid) {
+        if (notice) {
+            notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
+            notice.textContent = 'Silakan login terlebih dahulu untuk menyimpan URL webhook.';
         }
         return;
     }
@@ -380,7 +506,7 @@ function saveN8nWebhookFromModal() {
 
     if (notice) {
         notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/20 border-emerald-500/40 block';
-        notice.innerHTML = '<i class="fa-solid fa-circle-check mr-1.5 text-emerald-400"></i>URL Webhook n8n berhasil disimpan di browser!';
+        notice.innerHTML = '<i class="fa-solid fa-circle-check mr-1.5 text-emerald-400"></i>URL Webhook n8n berhasil disimpan khusus untuk akun Anda!';
     }
 
     setTimeout(() => {
@@ -508,13 +634,4 @@ if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
         console.warn("[Supabase Auth] Client creation deferred or failed:", err.message);
     }
 }
-
-const currentUser = {
-    userId: null,
-    name: "Member",
-    email: null,
-    role: "member",
-    status: "active",
-    loggedIn: false
-};
 
