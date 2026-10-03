@@ -6271,6 +6271,9 @@ async function startGeneration() {
             stopFunnyRotator();
             document.getElementById('loadingView').classList.add('hidden');
             document.getElementById('resultView').classList.remove('hidden');
+            if (state.directorData?.scenes?.length > 0 && !state.directorData.scenes[0].sceneGenerated) {
+                generateStoryboardScene(0);
+            }
         }, 420);
     } catch (err) {
         const cancelled = storyboardCancelled || err.code === 'CANCELLED' || err.message === 'CANCELLED';
@@ -7443,6 +7446,7 @@ async function renderStoryboardResults(breakdown, cachedImages) {
             <!-- Storyboard Canvas Preview (Constrained for elegance) -->
             <div class="max-w-2xl mx-auto mb-8">
                 <div id="sceneImgContainer_${idx}" class="relative bg-black/90 rounded-2xl overflow-hidden border border-white/10 flex items-center justify-center min-h-[320px] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.8)]">
+                    <!-- Loading State -->
                     <div id="sceneImgLoading_${idx}" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center gap-5 bg-black/75 backdrop-blur-sm">
                         <!-- Neon ring loader -->
                         <div class="relative w-16 h-16 flex items-center justify-center">
@@ -7453,13 +7457,42 @@ async function renderStoryboardResults(breakdown, cachedImages) {
                         </div>
                         <p class="text-[11px] text-white/60 font-medium tracking-wide">tunggu sebentar ya Bos,<br>masih di masakin...</p>
                     </div>
+
+                    <!-- Empty State when image not yet rendered -->
+                    <div id="sceneImgEmpty_${idx}" class="${cachedImages?.[idx] ? 'hidden' : ''} flex flex-col items-center justify-center p-8 text-center gap-3 z-10">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center shadow-lg shadow-purple-500/10">
+                            <i class="fa-solid fa-clapperboard text-2xl text-purple-300"></i>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-sm font-bold text-white tracking-wide">Adegan Ini Belum Di-render</p>
+                            <p class="text-xs text-gray-400 max-w-sm">Naskah visual & dialog sudah siap. Klik tombol di bawah untuk membuat gambar AI.</p>
+                        </div>
+                        <button type="button" onclick="generateStoryboardScene(${idx})" class="mt-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/25 flex items-center gap-2 transform hover:scale-105 transition">
+                            <i class="fa-solid fa-play text-amber-300"></i>
+                            <span>GENERATE GAMBAR ADEGAN INI</span>
+                        </button>
+                    </div>
+
+                    <!-- Error State if generation fails -->
+                    <div id="sceneImgError_${idx}" class="hidden flex flex-col items-center justify-center p-8 text-center gap-3 z-10">
+                        <div class="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 text-xl">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <p id="sceneImgErrorText_${idx}" class="text-xs text-red-300 max-w-sm font-medium">Gagal memuat gambar adegan.</p>
+                        <button type="button" onclick="generateStoryboardScene(${idx})" class="mt-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition flex items-center gap-2">
+                            <i class="fa-solid fa-arrows-rotate text-purple-400"></i>
+                            <span>Coba Lagi</span>
+                        </button>
+                    </div>
+
+                    <!-- Rendered Image -->
                     <img id="sceneImg_${idx}" class="hidden w-full h-auto object-contain rounded-2xl transition-opacity duration-500 opacity-0" onload="this.classList.remove('opacity-0')" />
                 </div>
             </div>
 
             <div class="flex justify-center gap-2 mb-6 flex-wrap">
-                <button id="btnEditScene_${idx}" onclick="openSceneImageEditModal(${idx})" ${cachedImages?.[idx] ? '' : 'disabled'} class="scene-action-btn px-4 py-2 bg-pink-600/30 hover:bg-pink-600/50 text-pink-200 text-xs font-bold rounded-xl border border-pink-500/40 transition"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Edit Gambar Adegan</button>
-                <button id="btnRegenerateScene_${idx}" onclick="regenerateSceneImage(${idx})" ${cachedImages?.[idx] ? '' : 'disabled'} class="scene-action-btn px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 text-xs font-bold rounded-xl border border-purple-500/40 transition"><i class="fa-solid fa-arrows-rotate mr-1"></i>Generate Ulang</button>
+                <button id="btnEditScene_${idx}" onclick="openSceneImageEditModal(${idx})" ${cachedImages?.[idx] ? '' : 'disabled'} class="scene-action-btn px-4 py-2 bg-pink-600/30 hover:bg-pink-600/50 text-pink-200 text-xs font-bold rounded-xl border border-pink-500/40 transition disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Edit Gambar Adegan</button>
+                <button id="btnRegenerateScene_${idx}" onclick="regenerateSceneImage(${idx})" ${cachedImages?.[idx] ? '' : 'disabled'} class="scene-action-btn px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 text-xs font-bold rounded-xl border border-purple-500/40 transition disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-arrows-rotate mr-1"></i>Generate Ulang</button>
                 <button id="downloadImgBtn_${idx}" onclick="downloadSceneImage(${idx})" class="hidden px-4 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-200 text-xs font-bold rounded-xl border border-cyan-500/40 transition"><i class="fa-solid fa-download mr-1"></i>Download Gambar</button>
                 <button id="btnRenderSceneN8n_${idx}" onclick="renderSceneToN8n(${idx})" class="scene-action-btn px-4 py-2 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 text-xs font-bold rounded-xl border border-emerald-500/40 transition flex items-center gap-1.5"><i class="fa-solid fa-film text-emerald-400"></i><span>Render Video (n8n)</span></button>
             </div>
@@ -7523,9 +7556,13 @@ async function renderStoryboardResults(breakdown, cachedImages) {
         cachedImages.forEach((src, i) => {
             const imgElem = document.getElementById('sceneImg_' + i);
             const loadingElem = document.getElementById('sceneImgLoading_' + i);
+            const emptyElem = document.getElementById('sceneImgEmpty_' + i);
+            const errorElem = document.getElementById('sceneImgError_' + i);
             if (imgElem && src) {
                 imgElem.src = src;
                 imgElem.classList.remove('hidden', 'opacity-0');
+                if (emptyElem) emptyElem.classList.add('hidden');
+                if (errorElem) errorElem.classList.add('hidden');
             }
             if (loadingElem) loadingElem.classList.add('hidden');
             document.getElementById('downloadImgBtn_' + i)?.classList.remove('hidden');
@@ -7697,6 +7734,10 @@ async function generateStoryboardScene(sceneIdx) {
         scene = state.directorData.scenes[sceneIdx];
         const previousImage = sceneIdx > 0 ? episode.images[sceneIdx - 1] : null;
         const image = document.getElementById('sceneImg_' + sceneIdx);
+        const emptyElem = document.getElementById('sceneImgEmpty_' + sceneIdx);
+        const errorElem = document.getElementById('sceneImgError_' + sceneIdx);
+        if (emptyElem) emptyElem.classList.add('hidden');
+        if (errorElem) errorElem.classList.add('hidden');
         loader = document.getElementById('sceneImgLoading_' + sceneIdx) || loader;
         if (loader) loader.classList.remove('hidden');
         setScenePhase(65, 90);
@@ -7720,6 +7761,8 @@ async function generateStoryboardScene(sceneIdx) {
             image.src = imgDataUrl;
             image.classList.remove('hidden', 'opacity-0');
         }
+        if (emptyElem) emptyElem.classList.add('hidden');
+        if (errorElem) errorElem.classList.add('hidden');
         if (loader) loader.classList.add('hidden');
         const generateButton = document.getElementById('btnGenerateScene_' + sceneIdx);
         if (generateButton) {
@@ -7742,7 +7785,11 @@ async function generateStoryboardScene(sceneIdx) {
         if (error.code === 'CANCELLED' || storyboardCancelled) return;
         console.warn('Scene ' + (sceneIdx + 1) + ' Image Gen Failed:', error);
         if (loader) loader.classList.add('hidden');
-        // Technical failures stay in internal diagnostics; leave the scene available for retry.
+        const errElem = document.getElementById('sceneImgError_' + sceneIdx);
+        const errText = document.getElementById('sceneImgErrorText_' + sceneIdx);
+        if (errText) errText.innerText = (error && error.message) ? error.message : 'Gagal membuat gambar adegan.';
+        if (errElem) errElem.classList.remove('hidden');
+        showCanvasNotice('Gagal membuat gambar adegan ' + (sceneIdx + 1) + ': ' + (error && error.message ? error.message : 'Silakan coba lagi.'), 'error');
     } finally {
         const completedImage = document.getElementById('sceneImg_' + sceneIdx);
         if (completedImage && completedImage.src && !completedImage.classList.contains('hidden')) {
@@ -7807,7 +7854,6 @@ function collectAdjacentSceneContinuityRefs(sceneIdx) {
 }
 
 async function generateStoryboardImageForPrompt(promptText, identityPlate, continuityRefs, options = {}) {
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent';
     // Grid anchor — shot-specific rules built from the fixed storyboardGridLock
     const aspectRatio = state.aspectRatio || '9:16';
     // V5.0 (Isu #2): require BOTH visualStyle === 'Auto Caption Overlay'
@@ -7950,14 +7996,37 @@ async function generateStoryboardImageForPrompt(promptText, identityPlate, conti
             imageAspectRatios: [aspectRatio]
         }
     };
-    let response = await fetchWithExponentialBackoff(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-        signal: storyboardAbortCtrl ? storyboardAbortCtrl.signal : undefined
-    }, 3, 90000);
-    if (!response.ok) throw new Error("Gemini Image API HTTP " + response.status);
-    let data = await response.json();
+    const imageModels = [
+        'gemini-3.1-flash-image-preview',
+        'gemini-2.5-flash-image-preview',
+        'gemini-3.1-flash-image'
+    ];
+    const postWithModelFallback = async (payload, retries = 3) => {
+        let lastErr = null;
+        for (const model of imageModels) {
+            const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
+            try {
+                const resp = await fetchWithExponentialBackoff(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal: storyboardAbortCtrl ? storyboardAbortCtrl.signal : undefined
+                }, retries, 90000);
+                if (!resp.ok) throw new Error('Gemini Image API HTTP ' + resp.status);
+                return await resp.json();
+            } catch (err) {
+                lastErr = err;
+                if (err.status === 404 || (err.message && err.message.includes('404'))) {
+                    console.warn('[Gemini Image] ' + model + ' returned 404, fallback to next model...');
+                    continue;
+                }
+                throw err;
+            }
+        }
+        throw lastErr || new Error('Gagal memanggil Gemini Image API.');
+    };
+
+    let data = await postWithModelFallback(requestBody, 3);
     let out = pickGeminiImageDataUrl(data);
     const finishReason = data?.candidates?.[0]?.finishReason
         || data?.candidates?.[0]?.detailedFinishReason?.recipeRunnerFinishReason
@@ -7996,17 +8065,10 @@ async function generateStoryboardImageForPrompt(promptText, identityPlate, conti
                 compactContents[0].parts.push({ inlineData: { mimeType: currentMatch[1], data: currentMatch[2] } });
             }
         }
-        response = await fetchWithExponentialBackoff(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: compactContents,
-                generationConfig: requestBody.generationConfig
-            }),
-            signal: storyboardAbortCtrl ? storyboardAbortCtrl.signal : undefined
-        }, 2, 90000);
-        if (!response.ok) throw new Error("Gemini Image API HTTP " + response.status);
-        data = await response.json();
+        data = await postWithModelFallback({
+            contents: compactContents,
+            generationConfig: requestBody.generationConfig
+        }, 2);
         out = pickGeminiImageDataUrl(data);
     }
     if (out && isPlacePromotion(state) && Number.isInteger(options.sceneIdx)) {
@@ -8060,6 +8122,8 @@ async function retrySceneImage(sceneIdx) {
             img.src = imgDataUrl;
             img.classList.remove('hidden', 'opacity-0');
         }
+        document.getElementById('sceneImgEmpty_' + sceneIdx)?.classList.add('hidden');
+        document.getElementById('sceneImgError_' + sceneIdx)?.classList.add('hidden');
         scene.regeneratedImage = imgDataUrl;
         scene.editedImage = imgDataUrl;
         episode.images[sceneIdx] = imgDataUrl;
@@ -8314,15 +8378,33 @@ async function invokeGeminiRequest(model, request) {
 }
 
 async function invokeGeminiImageRequest(request, options = {}) {
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent';
-    const response = await fetchWithExponentialBackoff(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-        signal: options.signal
-    }, 3, 90000);
-    if (!response.ok) throw new Error('Gemini Image API HTTP ' + response.status);
-    return response.json();
+    const fallbackModels = [
+        'gemini-3.1-flash-image-preview',
+        'gemini-2.5-flash-image-preview',
+        'gemini-3.1-flash-image'
+    ];
+    let lastError = null;
+    for (const model of fallbackModels) {
+        const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
+        try {
+            const response = await fetchWithExponentialBackoff(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(request),
+                signal: options.signal
+            }, 3, 90000);
+            if (!response.ok) throw new Error('Gemini Image API HTTP ' + response.status);
+            return await response.json();
+        } catch (err) {
+            lastError = err;
+            if (err.status === 404 || (err.message && err.message.includes('404'))) {
+                console.warn('[Gemini Image] ' + model + ' returned 404, trying next model...');
+                continue;
+            }
+            throw err;
+        }
+    }
+    throw lastError || new Error('Gemini Image request failed.');
 }
 
 function downloadSceneImage(sceneIdx) {
@@ -8578,6 +8660,8 @@ async function regenerateSceneImage(sceneIdx) {
         if (!image) throw new Error('Elemen gambar tidak ditemukan.');
         image.classList.remove('hidden', 'opacity-0');
         image.src = finalImageDataUrl;
+        document.getElementById('sceneImgEmpty_' + sceneIdx)?.classList.add('hidden');
+        document.getElementById('sceneImgError_' + sceneIdx)?.classList.add('hidden');
         scene.regeneratedImage = finalImageDataUrl;
         scene.editedImage = finalImageDataUrl;
         episode.images[sceneIdx] = finalImageDataUrl;
@@ -8819,6 +8903,8 @@ async function generateEditedSceneImage() {
         if (!editedDataUrl) throw new Error(data?.error || 'Hasil edit gambar kosong.');
         image.src = editedDataUrl;
         image.classList.remove('hidden', 'opacity-0');
+        document.getElementById('sceneImgEmpty_' + editingSceneIdx)?.classList.add('hidden');
+        document.getElementById('sceneImgError_' + editingSceneIdx)?.classList.add('hidden');
         hideSceneImageOverlay(editingSceneIdx);
         const scene = state.directorData?.scenes?.[editingSceneIdx];
         if (scene) {
