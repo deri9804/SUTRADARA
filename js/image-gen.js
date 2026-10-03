@@ -150,7 +150,7 @@ async function generateFotoImage({ promptText, aspectRatio, references, negative
             contents: contents,
             generationConfig: {
                 responseModalities: ["IMAGE"],
-                imageAspectRatios: [aspectRatio || "1:1"]
+                imageConfig: { aspectRatio: aspectRatio || "1:1" }
             }
         })
     });
@@ -456,7 +456,7 @@ async function generateThumbnailImage({ promptText, aspectRatio, references }) {
             contents: contents,
             generationConfig: {
                 responseModalities: ["IMAGE"],
-                imageAspectRatios: [aspectRatio || "16:9"]
+                imageConfig: { aspectRatio: aspectRatio || "16:9" }
             }
         })
     });
@@ -784,7 +784,7 @@ async function generateInfographicImage({ promptText, aspectRatio, references })
             contents: contents,
             generationConfig: {
                 responseModalities: ['IMAGE'],
-                imageAspectRatios: [aspectRatio || '1:1']
+                imageConfig: { aspectRatio: aspectRatio || '1:1' }
             }
         })
     });
@@ -1142,7 +1142,7 @@ async function generateProductAdsImage({ promptText, aspectRatio, references }) 
             contents: contents,
             generationConfig: {
                 responseModalities: ['IMAGE'],
-                imageAspectRatios: [aspectRatio || '1:1']
+                imageConfig: { aspectRatio: aspectRatio || '1:1' }
             }
         })
     });
@@ -1624,7 +1624,7 @@ async function generateCharacterSheetImage({ promptText, aspectRatio, references
             contents: contents,
             generationConfig: {
                 responseModalities: ['IMAGE'],
-                imageAspectRatios: [aspectRatio || '1:1']
+                imageConfig: { aspectRatio: aspectRatio || '1:1' }
             }
         })
     });
@@ -1964,7 +1964,7 @@ async function generatePosterImage({ promptText, aspectRatio, references }) {
             contents: contents,
             generationConfig: {
                 responseModalities: ['IMAGE'],
-                imageAspectRatios: [aspectRatio || '1:1']
+                imageConfig: { aspectRatio: aspectRatio || '1:1' }
             }
         })
     });

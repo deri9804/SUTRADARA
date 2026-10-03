@@ -7989,17 +7989,18 @@ async function generateStoryboardImageForPrompt(promptText, identityPlate, conti
     }
 
     throwIfStoryboardCancelled();
+    const imageConfig = aspectRatio ? { aspectRatio: String(aspectRatio).trim() } : null;
     const requestBody = {
         contents: contents,
-        generationConfig: {
-            responseModalities: ["IMAGE"],
-            imageAspectRatios: [aspectRatio]
-        }
+        generationConfig: Object.assign(
+            { responseModalities: ["IMAGE"] },
+            imageConfig ? { imageConfig } : {}
+        )
     };
     const imageModels = [
-        'gemini-3.1-flash-image-preview',
-        'gemini-2.5-flash-image-preview',
-        'gemini-3.1-flash-image'
+        'gemini-3.1-flash-image',
+        'gemini-2.5-flash-image',
+        'gemini-3.1-flash-image-preview'
     ];
     const postWithModelFallback = async (payload, retries = 3) => {
         let lastErr = null;
@@ -8016,11 +8017,27 @@ async function generateStoryboardImageForPrompt(promptText, identityPlate, conti
                 return await resp.json();
             } catch (err) {
                 lastErr = err;
+                if (err.status === 400 && payload.generationConfig?.imageConfig) {
+                    console.warn('[Gemini Image] 400 with imageConfig, retrying without imageConfig...');
+                    try {
+                        const strippedPayload = JSON.parse(JSON.stringify(payload));
+                        delete strippedPayload.generationConfig.imageConfig;
+                        const resp2 = await fetchWithExponentialBackoff(endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(strippedPayload),
+                            signal: storyboardAbortCtrl ? storyboardAbortCtrl.signal : undefined
+                        }, 1, 90000);
+                        if (resp2.ok) return await resp2.json();
+                    } catch (e2) {
+                        lastErr = e2;
+                    }
+                }
                 if (err.status === 404 || (err.message && err.message.includes('404'))) {
                     console.warn('[Gemini Image] ' + model + ' returned 404, fallback to next model...');
                     continue;
                 }
-                throw err;
+                throw lastErr || err;
             }
         }
         throw lastErr || new Error('Gagal memanggil Gemini Image API.');
@@ -8074,7 +8091,7 @@ async function generateStoryboardImageForPrompt(promptText, identityPlate, conti
     if (out && isPlacePromotion(state) && Number.isInteger(options.sceneIdx)) {
         return approvePlaceStoryboardImage(out, state.directorData.scenes[options.sceneIdx], options.sceneIdx, state, {
             contents,
-            generationConfig: { responseModalities: ['IMAGE'], imageAspectRatios: [aspectRatio] }
+            generationConfig: Object.assign({ responseModalities: ['IMAGE'] }, imageConfig ? { imageConfig } : {})
         });
     }
     if (out) return out;
@@ -8379,9 +8396,9 @@ async function invokeGeminiRequest(model, request) {
 
 async function invokeGeminiImageRequest(request, options = {}) {
     const fallbackModels = [
-        'gemini-3.1-flash-image-preview',
-        'gemini-2.5-flash-image-preview',
-        'gemini-3.1-flash-image'
+        'gemini-3.1-flash-image',
+        'gemini-2.5-flash-image',
+        'gemini-3.1-flash-image-preview'
     ];
     let lastError = null;
     for (const model of fallbackModels) {
@@ -8397,11 +8414,26 @@ async function invokeGeminiImageRequest(request, options = {}) {
             return await response.json();
         } catch (err) {
             lastError = err;
+            if (err.status === 400 && request.generationConfig?.imageConfig) {
+                try {
+                    const stripped = JSON.parse(JSON.stringify(request));
+                    delete stripped.generationConfig.imageConfig;
+                    const resp2 = await fetchWithExponentialBackoff(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(stripped),
+                        signal: options.signal
+                    }, 1, 90000);
+                    if (resp2.ok) return await resp2.json();
+                } catch (e2) {
+                    lastError = e2;
+                }
+            }
             if (err.status === 404 || (err.message && err.message.includes('404'))) {
                 console.warn('[Gemini Image] ' + model + ' returned 404, trying next model...');
                 continue;
             }
-            throw err;
+            throw lastError || err;
         }
     }
     throw lastError || new Error('Gemini Image request failed.');
@@ -8872,10 +8904,10 @@ async function generateEditedSceneImage() {
                 { inlineData: { mimeType: imageMatch[1], data: imageMatch[2] } }
             ]
         }],
-        generationConfig: {
-            responseModalities: ['IMAGE'],
-            imageAspectRatios: [state.aspectRatio || '9:16']
-        }
+        generationConfig: Object.assign(
+            { responseModalities: ['IMAGE'] },
+            state.aspectRatio ? { imageConfig: { aspectRatio: state.aspectRatio } } : {}
+        )
     };
     sceneEditReferenceImages.forEach((ref, index) => {
         const refMatch = (ref && ref.dataUrl || '').match(/^data:(.+);base64,(.+)$/);
