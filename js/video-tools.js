@@ -1260,7 +1260,7 @@ async function generateEditImage({ promptText, aspectRatio, references }) {
             contents: contents,
             generationConfig: {
                 responseModalities: ['IMAGE'],
-                imageConfig: { aspectRatio: aspectRatio || '1:1' }
+                imageAspectRatios: [aspectRatio || '1:1']
             }
         })
     });
