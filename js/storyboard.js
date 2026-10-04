@@ -5661,10 +5661,6 @@ async function continueNextEpisode() {
     }
     const cap = Math.min(5, Number(state.episodeCount) || 1);
     if (state.currentEpisode >= cap) return;
-    if (!isCurrentEpisodeComplete()) {
-        showCanvasNotice('Selesaikan dulu episode ' + state.currentEpisode + ' Boss..');
-        return;
-    }
     const completed = (state.episodeSeries || []).find(item => item.episode === state.currentEpisode);
     if (completed && completed.breakdown) {
         state.seriesPlan = completed.breakdown.seriesPlan || state.seriesPlan;
@@ -7005,5 +7001,2422 @@ SCENE VISUAL VARIETY: Beri setiap scene satu sceneVisualPlan yang berbeda fungsi
 7. SERIES: Kerjakan HANYA episode ${(Number(config.currentEpisode) || 1)} dari ${Math.min(5, Number(config.episodeCount) || 1)}. Jangan tulis episode lain di JSON ini. Episode ini harus terasa lengkap dan WOW, lalu menyambung serial jika masih ada part berikutnya.
 8. DIALOG: Pertengkaran, jual-beli, tawar-menawar, tanya-jawab = dialog DUA ARAH, pendek, tidak terpotong. Suara tiap karakter BEKU di semua scene/episode.
 8B. AUDIO PERFORMANCE: Untuk setiap scene ber-audio, isi audioDirection dengan sceneEmotion, intensity 1-10, pacing, soundTexture, dan performanceNotes. Tulis arahan delivery per pembicara di [AUDIO / DIALOGUE] dengan format [specific expression] CHARACTER_N: "...": pitch, volume, tempo, stress, pause, breath, facial expression, eye focus, posture, dan gesture. Setiap giliran wajib memiliki ekspresi spesifik yang kaya dan sesuai niat karakter; jangan gunakan delivery atau ekspresi flat/default jika emosi scene berubah.
-8C. DIALOGUE TURN FORMAT: Jika ada dua atau lebih karakter yang berinteraksi, dialogueOrNarration dan blok [AUDIO / DIALOGUE] WAJIB memakai satu baris per giliran dengan label pembicara yang jelas: CHARACTER_1: "..." lalu CHARACTER_2: "...". Jangan menggabungkan seluruh percakapan menjadi satu paragraf. Jangan menulis header [AUDIO / DIALOGUE] lebih d
-... [truncated for diff preview]
+8C. DIALOGUE TURN FORMAT: Jika ada dua atau lebih karakter yang berinteraksi, dialogueOrNarration dan blok [AUDIO / DIALOGUE] WAJIB memakai satu baris per giliran dengan label pembicara yang jelas: CHARACTER_1: "..." lalu CHARACTER_2: "...". Jangan menggabungkan seluruh percakapan menjadi satu paragraf. Jangan menulis header [AUDIO / DIALOGUE] lebih dari sekali.
+8D. DIALOGUE PLAN FIRST: sebelum menulis dialogueOrNarration, buat dialoguePlan untuk setiap scene dengan mode, participants, dramaticObjective, trigger, turnPattern, tone, dan forbidden. dialoguePlan harus berasal dari aksi visual, hubungan karakter, dan perubahan emosi scene yang sama. Setiap baris dialog wajib merespons baris/aksi sebelumnya, membawa niat karakter, dan mengubah atau memperjelas keadaan scene. Dilarang mengisi dialog dengan kalimat generik, ringkasan prompt, atau monolog jika dua peserta terlihat dan berinteraksi.
+8E. AUDIO MUST MATCH PICTURE: Tulis dialog setelah menentukan aksi visual scene. Sebut atau respons hanya pada objek, tempat, tindakan, hubungan, dan emosi yang benar-benar ada di scene ini. Jangan membawa dialog, voice-over, CTA, konflik, atau informasi dari scene lain. Jika dialog tidak dapat dijelaskan oleh visual anchor scene ini, tulis ulang dialognya.
+9. SOCIAL PACK — BUKAN TEMPLATE, WAJIB SESUAI YANG DIJUAL:
+Tentukan SUBJEK POSTINGAN dulu: apa yang user ingin orang beli / tonton. Caption dan hashtag HANYA tentang subjek itu.
+- Jika iklan produk atau jasa: subjek = produk/jasa/offer yang diminta user. Jangan sebut lokasi syuting, set, studio, kamar, atau properti pendukung kecuali ITU yang dijual.
+- Caption harus menjual atau mengajak menonton subjek utama, bukan mempromosikan latar visual yang kebetulan muncul.
+- socialCaption: 1-3 baris, bahasa ${config.language}, spesifik, terdengar kreator pintar, sebut nama produk jika ada. Dilarang rumus "Upgrade X lo. Y: empuknya gak masuk akal". Dilarang klaim yang tidak ada di brief.
+- hashtags: 8-12 tag search-intent untuk produk/konten itu. Dilarang tag set/lokasi syuting (#GamingSetup #TechLifestyle) jika bukan itu yang dijual.
+LANGUAGE RULE — KETAT:
+- Semua visual direction, camera work, lighting, editing, sound design, overlay design → WAJIB dalam Bahasa Inggris.
+- Hanya dialogue, voice-over narration, dan quoted on-screen text → gunakan ${config.language}.
+- JANGAN pernah menerjemahkan seluruh visual prompt ke ${config.language}.
+VISUAL STYLE LOCK — MUTLAK:
+Gaya visual yang dipilih: "${resolvedVisualStyle}".
+- Terapkan secara IDENTIK ke setiap scene, shot, panel, image prompt, dan video prompt.
+- ${animationMediumContract}
+- Jika Realistic Photography: photorealistic anatomy, skin texture, optics, lens behavior, lighting physics.
+- Jika animation: pertahankan medium animasi yang sama persis — linework, shading, texture, proporsi, motion language, termasuk background dan environment.
+- JANGAN pernah mencampur realistic, anime, 3D CGI, illustration, atau rendering language berbeda dalam satu video.
+STYLE HARD GATE: Jika style adalah Auto/Realistic Photography/Cinematic, SEMUA panel wajib photorealistic/cinematic. DILARANG total: cartoon, comic, manga, anime, cel-shading, vector art, 2D illustration, painterly, watercolor, paper cutout, line-art, mixed media.
+ATURAN JUMLAH KETAT: Field "scenes" WAJIB berisi tepat ${config.sceneCount} adegan, masing-masing mencakup presisi ${config.shotsPerScene} shot sesuai layout grid di bawah. Tidak boleh kurang, tidak boleh lebih.
+JSON SCHEMA — WAJIB DIIKUTI PERSIS:
+{
+  "contentGenre": "advertisement",
+    "hookPlan": { "hookType": "...", "visualAction": "...", "timing": "0-3 seconds, Scene 1 Panel 1 / Shot 1", "audienceEffect": "...", "productRole": "...", "safetyNote": "..." },
+  "directorIntent": {
+    "userMindReading": "Apa sebenarnya maksud user, termasuk motif cerita/iklan tersembunyi",
+    "creativeTreatment": "Hook, konflik, rhythm, visual motif, payoff, CTA/punchline jika relevan",
+    "whyThisWillWork": "Alasan keputusan TRENDORA terasa kuat untuk penonton"
+  },
+  "socialCaption": "1-3 baris caption siap posting",
+  "hashtags": ["#tag1", "#tag2"],
+  "masterVisualIdentity": {
+    "characters": [{ "characterId": "CHARACTER_1", "role": "lead", "identity": "Wajah, struktur wajah, age stage/usia timeline, warna kulit, rambut, mata, bentuk tubuh, postur, ciri khas — BEKU", "faceLock": "Bentuk wajah, mata, hidung, mulut, rahang, ekspresi khas — BEKU", "hairLock": "Panjang rambut, garis rambut, tekstur, warna, gaya ikat/urai — BEKU", "skinLock": "Warna kulit dan complexion — BEKU", "bodyLock": "Tinggi, bentuk tubuh, postur, siluet gerak — BEKU", "distinguishingFeatures": "Ciri pembeda spesifik agar tidak tertukar karakter lain", "referenceLock": "Jika dari foto referensi: wajah, tubuh, rambut, kulit, dan outfit terlihat mengikuti foto", "voice": "Identitas suara unik: gender/usia/pitch/accent/timbre/speaking style — BEKU", "wardrobeDefault": "Outfit default + color anchor spesifik", "wardrobeByBeat": [{ "beat": "bedroom-night", "wardrobe": "Piyama spesifik", "changeReason": "establish first wardrobe beat" }] }],
+    "locations": [{ "locationId": "LOC_BEDROOM", "name": "Bedroom", "lock": "Arsitektur, furnitur, dinding, jendela, lampu — identitas ruangan yang dikunci", "backgroundAnchor": "Elemen background yang wajib sama saat locationId ini muncul lagi" }],
+    "continuityBible": { "castBible": ["CHARACTER_1; face=...; hair=...; skin=...; body=...; wardrobe=..."], "wardrobeBible": ["CHARACTER_1; beat=bedroom-night; wardrobe=...; reason=..."], "locationBible": ["LOC_BEDROOM; sofa kiri; jendela belakang; lampu meja kanan"] },
+    "character": "Ringkasan identitas beku seluruh pemain",
+    "wardrobe": "Ringkasan wardrobe default",
+    "location": "Ringkasan dunia/lokasi",
+    "product": { "name": "Nama produk", "look": "Warna, material, bentuk, branding — BEKU", "shapeLock": "Siluet, proporsi, ketebalan, cap/strap/sole/package shape — BEKU", "colorMaterialLock": "Warna utama, aksen, material, tekstur, finish — BEKU", "labelLogoLock": "Posisi label/logo/marking dan proporsi branding — BEKU", "detailLock": "Detail pembeda kecil yang wajib sama di semua panel", "realWorldSize": "Ukuran nyata, mis. sendal dewasa ~26cm, tebal sol 3cm", "scaleVsBody": "Vs tangan dewasa: memenuhi telapak. Vs kepala: jauh lebih kecil. Vs kaki: ukuran footwear asli.", "referenceLock": "Jika ada product ref: attached photo adalah master design plate dan scale plate" },
+    "objectProduct": "Ringkasan produk untuk UI",
+    "lighting": "Bahasa cahaya default",
+    "visualStyle": "${resolvedVisualStyle}"
+  },
+  "scenes": [
+    {
+      "sceneNumber": 1,
+      "title": "Judul Adegan",
+      "storyPurpose": "Fungsi adegan dalam spine: hook / escalation / reveal / product insert / payoff / CTA only if advertisement",
+      "locationId": "LOC_BEDROOM",
+      "timeOfDay": "night",
+      "wardrobeBeat": "bedroom-night",
+    "sceneVisualPlan": { "sceneFunction": "...", "visualAction": "...", "cameraStrategy": "...", "avoidRepeating": "..." },
+"dialoguePlan": { "mode": "...", "participants": ["CHARACTER_1", "CHARACTER_2"], "dramaticObjective": "...", "visualAnchor": "...", "relationship": "...", "trigger": "...", "linePurpose": "...", "turnPattern": "...", "tone": "...", "forbidden": "..." },
+    "audioDirection": { "sceneEmotion": "...", "intensity": 1, "pacing": "...", "soundTexture": "...", "performanceNotes": "..." },
+    "overlayDesign": { "headline": "...", "supportingText": "...", "benefitBullets": ["..."], "callouts": ["..."], "iconography": "...", "colorSystem": "...", "typography": "...", "textPlacement": "...", "animation": "...", "timing": "..." },
+      "masterImagePrompt": "...",
+      "masterVideoPrompt": "...",
+    "dialogueOrNarration": "CHARACTER_1: \"...\"\\nCHARACTER_2: \"...\" (one labeled line per turn; use VOICEOVER only for narration)"
+    }
+  ]
+}
+CONTINUITY BIBLE — WAJIB (FRESH + KONSISTEN):
+A. IDENTITY BEKU: wajah, tubuh, kulit, rambut, age stage, wardrobe/color anchor, dan ciri khas CHARACTER_N identik di semua scene. Dilarang parafrase identitas. Dilarang menambah/menghapus pemain bernama. Extra: wajah tidak menonjol, jangan jadi karakter baru.
+A1. FORENSIC CHARACTER LOCK: Setiap CHARACTER_N wajib ditulis sebagai bukti visual berulang: faceLock, hairLock, skinLock, bodyLock, distinguishingFeatures. CHARACTER_2 tidak boleh berubah tipe rambut, panjang rambut, bentuk wajah, atau usia. CHARACTER_3, CHARACTER_4, dst mengikuti aturan yang sama.
+A2. AGE PROGRESSION: jika cerita meminta masa depan/tahun kemudian/anak tumbuh besar, buat versi dewasa yang tetap jelas turunan karakter yang sama. Jika scene bukan future/time-skip, jangan ubah anak menjadi remaja/dewasa atau dewasa menjadi usia lain.
+A3. AUDIO PERFORMANCE: setiap karakter berbicara dengan emosi, ritme, dan intensitas yang sesuai perkembangan adegan. Jangan menulis nama preset TTS, voice ID, atau instruksi penguncian suara di naskah dialog.
+B. WARDROBE PER BEAT: outfit dikunci per wardrobeBeat (lokasi + waktu). Ganti HANYA jika cerita memaksa: ganti hari, ganti tempat, tidur, kerja, hujan. Contoh: malam di kamar = piyama; keesokan hari ke pasar = outfit luar, BUKAN piyama. Dalam SATU beat, wardrobe identik kata-per-kata. Jangan pakai outfit yang sama seumur film jika beat sudah berganti.
+C. LOKASI PER ADEGAN: tiap scene punya locationId. Selama scene di LOC_MARKET, background WAJIB pasar yang sama (arsitektur, stall, cahaya, keramaian). Dilarang teleport. Pindah hanya dengan transisi yang dijelaskan (keluar rumah, jalan, sampai pasar). Setelah pindah, kunci lokasi baru sampai pindah lagi.
+C2. SCENE ISOLATION: tiap scene adalah target visual tunggal. Jangan pernah memasukkan lokasi/properti/wardrobe/aktivitas scene lain ke scene sekarang. Jika scene sekarang ruang tamu, jangan tampilkan gym/barbell/sportwear kecuali scene sekarang eksplisit meminta gym.
+D. KAMERA FRESH: DILARANG semua shot full-body. Variasikan ECU, CU, MCU, MS, OTS, insert tangan/objek, low/high angle. Shot berikutnya wajib ganti ukuran atau angle. Ulangi framing hanya jika ada alasan.
+E. PRODUCT SCALE — BEKU: Jika ada produk, kunci desain DAN ukuran nyata di semua panel. Close-up boleh memenuhi frame, tapi jika tangan/wajah/tubuh terlihat, rasio produk:tubuh WAJIB sama. Dilarang sendal sebesar kepala di portrait. Dilarang barang mengecil di wide shot. Cantumkan realWorldSize dan scaleVsBody di setiap image/video prompt. Jika ada product reference photo, itu acuan desain dan skala.
+F. GENRE IKLAN VS HYBRID:
+- 100% IKLAN: wajib extreme visual hook di scene 1 panel 1/detik 1-3. Jangan monoton; jangan selalu memakai perangkat yang sama. TRENDORA boleh menciptakan hook lain yang lebih relevan daripada contoh. Wajib CTA di scene terakhir.
+- HYBRID CERITA+IKLAN: cerita menang. Sisipkan produk/promo hanya di tengah cerita lewat dialog/aksi pendek dan natural. Scene terakhir DILARANG CTA; ending harus payoff cerita.
+ATURAN WAJIB UNTUK MASTER IMAGE PROMPT:
+1. Cantumkan semua CHARACTER_ID yang muncul dengan identity + faceLock + hairLock + skinLock + bodyLock + outfit lock untuk wardrobeBeat + locationId. Dilarang shortcut "same character / same wardrobe / unchanged".
+2. Rincikan visual HANYA untuk ${config.shotsPerScene} panel: PANEL 1–PANEL ${config.shotsPerScene}. Dilarang menulis PANEL lebih dari itu.
+3. Scene N+1 wajib CONTINUITY naratif dari end state scene N, tapi tidak boleh mencampur visual scene N jika locationId/wardrobeBeat sudah berbeda.
+4. SPOKEN DIALOGUE SEPARATION: dialogue, CTA, jokes, narrator lines, speech bubbles, subtitles, captions, slogan text, and quoted lines MUST NOT appear as visible text inside the image unless Auto Caption Overlay is selected. They belong only in dialogueOrNarration and masterVideoPrompt [AUDIO / DIALOGUE].
+5. TEXT ARTIFACT BAN: kecuali Auto Caption Overlay, jangan tulis caption, subtitle, UI text, watermark, hex code (#ffff80), CSS color, prompt fragment, duplicate panel number, atau huruf acak di dalam gambar. Panel number kecil harus unik dan berurutan.
+5B. DIALOGUE IS AUDIO ONLY: kalimat di dialogueOrNarration atau [AUDIO / DIALOGUE] adalah suara, bukan tulisan di gambar. Jangan render speech bubble/subtitle seperti "Permisi, Mas" atau "Monggo" di panel.
+6. FINAL SCENE ANTI-REPEAT: khusus scene terakhir, setiap panel wajib beda framing/action/emotional value. Jangan mengulang shot jendela, close-up wajah, produk di meja, atau pose reflektif yang sama. Panel terakhir harus payoff visual baru.
+7. Akhiri dengan SCENE ISOLATION NOTE dan AUDIO CONTINUITY NOTE (Bahasa Inggris).
+
+ATURAN WAJIB UNTUK MASTER VIDEO PROMPT:
+STRUKTUR: [START] → [SHOT PROGRESSION] → [CAMERA WORK] → [END STATE]
+        ASPECT RATIO: ${config.aspectRatio} — jangan ganti. DIALOG: dialogueOrNarration berada di blok [AUDIO / DIALOGUE] pada bagian awal prompt. Tulis dialog yang segar, spesifik terhadap konflik dan aksi scene, tanpa nama preset TTS, voice ID, atau instruksi suara beku.
+${interactionDialogRule}${dialogRules}
+CLEAN VIDEO OPENING — NON-NEGOTIABLE: Detik pertama video WAJIB SATU frame cinematic Shot 1 full-screen. BUKAN grid, BUKAN panel, BUKAN animatic, BUKAN contact sheet, BUKAN multi-panel layout, BUKAN komik frame, BUKAN black gutter, BUKAN panel number. Video adalah satu camera merekam satu scene dengan continuous real motion — JANGAN animate atau arrange the storyboard panels. FORBIDDEN untuk seluruh clip, terutama detik 1–2 DAN setiap saat setelahnya: storyboard grid, multi-panel layout, comic frames, black gutters, panel numbers, split-screen, contact sheet, animatic, collage. Penonton TIDAK BOLEH melihat frame yang terlihat seperti storyboard.
+STYLE CONTINUITY LOCK: Setiap masterImagePrompt dan masterVideoPrompt harus menyebutkan gaya visual "${visualStyleSetting}" secara eksplisit. Jangan pernah mencampur realistic, anime, 3D CGI, illustration, atau rendering language berbeda.
+AUDIO CONTINUITY: Setiap masterVideoPrompt harus menjaga bahasa ${config.language}, pronunciation, emotional tone, room tone, ambience, music bed, sound-effects palette, loudness balance, dan transisi audio yang seamless dari scene sebelumnya. Jangan menambahkan nama preset TTS, voice ID, atau instruksi penguncian suara ke dalam dialog.
+${config.visualStyle === 'Auto Caption Overlay' ? 'AUTO CAPTION OVERLAY DIRECTOR MODE: Create an exceptionally cinematic, maximal, creative motion-graphics package directly visible in every storyboard image and video prompt, not plain text. Design layered kinetic typography, icons, pictograms, callouts, animated infographic charts, data cards, particles, light streaks, depth layers, parallax, tracked labels, HUD accents, transitions, and sound-synced visual beats whenever relevant. For every scene specify hierarchy, short readable headline/caption in ' + config.language + ', iconography, shape system, color, typography, texture, depth, lighting integration, safe placement, entrance animation, timing, object/camera tracking, exit animation, easing, and audio-reactive or beat-synced motion. Use only information grounded in the user prompt and never invent claims. Let the director choose as many tasteful effects as the scene supports while keeping the subject legible and premium, like a high-budget film title sequence, broadcast package, and branded commercial combined. This mode is explicitly exempt from clean-screen, no-text, no-caption, and no-overlay rules.' : 'CLEAN TEXT RULE: Do not create captions, watermark, logo, subtitle, or overlay text.'}
+${(config.characterReference && config.characterReference.length) ? 'CHARACTER REFERENCE KEYWORD — HARUS ADA DI SETIAP SCENE: Tulis persis kalimat "don\'t change the face and characteristic from attached photo." Face, skin, hair, and body from the attached photo are frozen. If outfit is visible in the attached photo and user did not request wardrobe changes, preserve that outfit/color anchor across every scene. Wardrobe may change ONLY when the story explicitly requires a different day/place/context, and then the new wardrobe must be locked by wardrobeBeat.' : ''}
+${(config.productReference && config.productReference.length) ? 'PRODUCT REFERENCE — HARD DESIGN PLATE: attached product photo is the master design AND real-world scale plate. Freeze exact product category, silhouette, proportions, thickness, colorway, material, label/logo position, markings, packaging/strap/cap/sole shape, and distinctive details. Keep the same size versus hands, face, feet, table, and body in every panel. Close-up may fill the frame without changing true size. Do not redesign, simplify, rebrand, recolor, enlarge, shrink, or swap the product.' : ''}
+HINT GENRE DARI SISTEM: ${genreHint}. Koreksi jika niat cerita berbeda, lalu eksekusi 100% sesuai genre final.
+${getGenreInstruction(genreHint)}
+Jika genre final berbeda dari hint, abaikan aturan hint di atas. Pakai: iklan=EXTREME visual hook detik 1–3 + CTA tidak monoton di akhir; horror=dread/withheld reveal tanpa CTA; drama=emosi earned tanpa CTA; komedi=setup-payoff; edukasi=satu ide per beat; action=momentum; dokumenter=authentic; hybrid=cerita utama + produk/promo natural di tengah cerita + CTA akhir dilarang.
+`;
+
+    const epN = Number(config.currentEpisode) || 1;
+    const epTotal = Math.min(5, Number(config.episodeCount) || 1);
+    let episodeBlock = '';
+    if (epTotal > 1) {
+        episodeBlock = 'EPISODE ' + epN + ' of ' + epTotal + '. This chapter must feel complete and cinematic on its own. Do not dump the entire remaining plot into this JSON. ';
+        if (epN === 1) episodeBlock += 'Opening: hook hard, do not resolve the whole story, end with a reason to continue.';
+        else if (epN === epTotal) episodeBlock += 'FINALE: pay off the series. If advertisement, put CTA only here.';
+        else episodeBlock += 'Middle: advance the story, no full recap, no finale CTA.';
+        if (epN > 1) {
+            episodeBlock += '\n' + previousEpisodeBrief();
+            episodeBlock += '\nCAST/PRODUCT FROZEN from episode 1. Do not redesign faces or product scale. New locations OK if the story moves.';
+            if (config.episodeBible) {
+                episodeBlock += '\n' + buildCastLock(config.episodeBible, config);
+                const pLock = buildProductLock(config.episodeBible, !!(config.productReference && config.productReference.length), config);
+                if (pLock) episodeBlock += '\n' + pLock;
+            }
+        }
+    }
+    const userQuery = `Konsep Story: ${config.story}.
+Genre hint: ${genreHint}. Commercial intent: ${commercialMode}. Product reference: ${(config.productReference && config.productReference.length) ? 'YES' : 'NO'}. Character reference: ${(config.characterReference && config.characterReference.length) ? 'YES' : 'NO'} (${Math.min(CHARACTER_REF_MAX, (config.characterReference || []).length)} attached cast members, mapped in upload order to CHARACTER_1 through CHARACTER_4). Location reference: ${(config.locationReference && config.locationReference.length) ? 'YES' : 'NO'}.
+Jumlah Adegan: ${config.sceneCount}. Shot per adegan: ${config.shotsPerScene}. Aspect Ratio: ${config.aspectRatio}. Audio Mode: ${config.audioMode}. Bahasa: ${config.language}. Visual Style: ${resolvedVisualStyle}.
+${episodeBlock}
+BRIEF V4.0: Input mungkin sangat sederhana atau nyeleneh. Jangan jadi template. Baca dulu maksud tersembunyi user, lalu buat treatment seperti TRENDORA senior: hook, conflict, rhythm, reveal, payoff, dan CTA hanya jika 100% iklan. Jika 100% iklan, buka dengan extreme visual hook yang fresh dan wajib CTA akhir. Jika hybrid cerita+iklan, integrasikan produk sebagai sisipan organik di tengah cerita dan jangan beri CTA di akhir. Wajah pemain beku. Outfit mengikuti reference/beat. Lokasi dikunci per adegan. Kamera bervariasi, jangan full-body terus. Jika ada produk, kunci ukuran nyata vs tubuh — jangan membesar di close-up portrait atau mengecil di wide. Caption & hashtag HANYA tentang yang dijual/ditonton, bukan lokasi syuting.`;
+
+    const payloadParts = [{ text: userQuery }];
+    const allRefs = [
+        ...(config.characterReference || []),
+        ...(config.productReference || []),
+        ...(config.locationReference || [])
+    ];
+    allRefs.forEach(ref => {
+        if (ref && ref.dataUrl) {
+            const match = ref.dataUrl.match(/^data:(.+);base64,(.+)$/);
+            if (match) {
+                payloadParts.push({
+                    inlineData: {
+                        mimeType: match[1],
+                        data: match[2]
+                    }
+                });
+            }
+        }
+    });
+
+    const payload = {
+        contents: [{ parts: payloadParts }],
+        generationConfig: { responseMimeType: "application/json" },
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+    };
+
+    const response = await fetchWithExponentialBackoff(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: storyboardAbortCtrl ? storyboardAbortCtrl.signal : undefined
+    }, 3, 90000);
+    const result = await response.json();
+    const breakdownText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!breakdownText) throw new Error("Gagal menerima data breakdown TRENDORA.");
+
+    // Robust multi-strategy JSON parsing
+    let breakdown;
+    const raw = breakdownText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+    // Strategy 1: direct parse
+    try {
+        breakdown = JSON.parse(raw);
+    } catch (e1) {
+        // Strategy 2: find balanced JSON object bounds
+        let endPos = -1, depth = 0, inStr = false, escaped = false;
+        for (let i = raw.indexOf('{'); i < raw.length; i++) {
+            const ch = raw[i];
+            if (escaped) { escaped = false; continue; }
+            if (ch === '\\') { escaped = true; continue; }
+            if (ch === '"') { inStr = !inStr; continue; }
+            if (inStr) continue;
+            if (ch === '{') { if (depth === 0) endPos = i; depth++; }
+            else if (ch === '}') { depth--; if (depth === 0) { endPos = i; break; } }
+        }
+        if (endPos >= 0) {
+            try {
+                breakdown = JSON.parse(raw.substring(raw.indexOf('{'), endPos + 1));
+            } catch (e2) {
+                // Strategy 3: extract scenes array and rebuild breakdown
+                const scenesMatch = raw.match(/"scenes"\s*:\s*\[([\s\S]*)\]\s*[,}]/);
+                if (scenesMatch) {
+                    try {
+                        const scenes = JSON.parse('[' + scenesMatch[1] + ']');
+                        if (Array.isArray(scenes) && scenes.length > 0) {
+                            breakdown = { masterVisualIdentity: null, scenes: scenes };
+                        }
+                    } catch (e3) { /* scenes parse failed, fall through to error */ }
+                }
+                if (!breakdown) {
+                    // Strategy 4: last resort — try extracting scene blocks via regex
+                    const sceneBlocks = raw.match(/\{[^{}]*"sceneNumber"\s*:\s*\d+[\s\S]*?\}(?=\s*[,}\]]|$)/g);
+                    if (sceneBlocks && sceneBlocks.length > 0) {
+                        const scenes = sceneBlocks.map(b => {
+                            try { return JSON.parse(b); } catch { return null; }
+                        }).filter(Boolean);
+                        if (scenes.length > 0) breakdown = { masterVisualIdentity: null, scenes: scenes };
+                    }
+                }
+                if (!breakdown) {
+                    throw new Error("Respons API tidak dapat diparse: " + e2.message + " (position " + e2.message.match(/\d+/)?.[0] + ")");
+                }
+            }
+        } else {
+            throw new Error("Tidak dapat menemukan struktur JSON dalam respons API.");
+        }
+    }
+
+    // Normalize: support both {scenes:[...]} and {scenes:{scene1,scene2}} or direct array
+    if (breakdown && breakdown.scenes && typeof breakdown.scenes === 'object' && !Array.isArray(breakdown.scenes)) {
+        breakdown.scenes = Object.values(breakdown.scenes);
+    }
+    if (breakdown && Array.isArray(breakdown) && !breakdown.scenes) {
+        breakdown = { masterVisualIdentity: null, scenes: breakdown };
+    }
+    if (!breakdown || !Array.isArray(breakdown.scenes)) {
+        throw new Error("Format breakdown tidak valid: respons API tidak mengandung array scenes.");
+    }
+
+    return breakdown;
+}
+
+function normalizeDialogueText(value) {
+    return String(value || '')
+        .replace(/\\"/g, '"')
+        .replace(/\\r\\n|\\n/g, '\n')
+        .replace(/\s*[|¦]\s*/g, '\n')
+        .replace(/\s+(?=(?:(?:\[[^\]]+\]\s*)?CHARACTER_\d+|VOICEOVER|NARRATOR|SOUND DESIGN)\s*:)/gi, '\n')
+        .replace(/^[ \t]*\[AUDIO\s*\/\s*DIALOGUE\][ \t]*\n?/gim, '')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line && !/^\[[^\]]+\]$/.test(line))
+        .join('\n');
+}
+
+function pullDialogueSection(prompt, spokenFallback) {
+    const src = prompt || '';
+    const heading = '(?:STRICT VISUAL CONSISTENCY GATE|CHARACTER FORENSIC RENDER LOCK|NO TEXT ARTIFACT LOCK|TEXT ARTIFACT CONTROL LOCK|FINAL SCENE ANTI-REPEAT LOCK|LONG STORYBOARD DISCIPLINE LOCK|SCENE ISOLATION LOCK|CONTINUITY BIBLE LOCK|CAST IDENTITY LOCK:|VOICE CAST LOCK:|DIALOGUE DURATION LOCK|AUDIO PERFORMANCE \/ ACTING LOCK|PRODUCT IDENTITY \\+ SCALE LOCK:|PRODUCT SCALE LOCK:|SCENE SETTING LOCK:|CAMERA VARIETY LOCK:|VISUAL STYLE LOCK:|AUDIO CONTINUITY LOCK:|ASPECT RATIO LOCK:|STORYBOARD GRID LOCK:|CLEAN VIDEO OPENING:)';
+    const re = new RegExp('(?:^|\\n)\\s*\\[AUDIO\\s*\\/\\s*DIALOGUE\\]\\s*\\n[\\s\\S]*?(?=\\n\\s*(?:\\[AUDIO\\s*\\/\\s*DIALOGUE\\]|' + heading + ')|$)', 'gi');
+    const matches = [...src.matchAll(re)];
+    const dialogueLines = matches.map(match => normalizeDialogueText(match[0]).replace(/^\[AUDIO\s*\/\s*DIALOGUE\]\s*/i, '')).filter(Boolean);
+    let block = dialogueLines.length ? '[AUDIO / DIALOGUE]\n' + Array.from(new Set(dialogueLines.join('\n').split('\n').map(line => line.trim()).filter(Boolean))).join('\n') : '';
+    let rest = matches.length ? matches.reduceRight((text, match) => text.slice(0, match.index) + text.slice(match.index + match[0].length), src).trim() : src;
+    if (!block && spokenFallback && String(spokenFallback).trim()) {
+        block = '[AUDIO / DIALOGUE]\n' + normalizeDialogueText(spokenFallback);
+    }
+    return { rest, block };
+}
+
+function extractDialogueLines(prompt) {
+    return normalizeDialogueText(prompt).split('\n')
+        .map(line => line.trim())
+        .filter(line => /^(?:\[[^\]]+\]\s*)?(?:CHARACTER_\d+|VOICEOVER|NARRATOR)\s*:/i.test(line))
+        .join('\n');
+}
+
+function moveAudioDialogueToBottom(prompt, spokenFallback) {
+    const pulled = pullDialogueSection(prompt, spokenFallback);
+    if (!pulled.block) return pulled.rest;
+    return pulled.rest.replace(/\n{3,}/g, '\n\n').trim() + '\n\n' + pulled.block;
+}
+
+/* ----------------------------------------------------------------- */
+/* RESULTS RENDERING & STORYBOARD IMAGE PIPELINE                     */
+/* ----------------------------------------------------------------- */
+function renderSocialPack(breakdown) {
+    const el = document.getElementById('socialPackContainer');
+    if (!el) return;
+    const caption = (breakdown && breakdown.socialCaption) ? String(breakdown.socialCaption).trim() : '';
+    let tags = breakdown && breakdown.hashtags;
+    if (Array.isArray(tags)) {
+        tags = tags
+            .map(tag => String(tag || '').trim().replace(/^#+/, ''))
+            .filter(Boolean)
+            .map(tag => '#' + tag.replace(/\s+/g, ''))
+            .join(' ');
+    } else {
+        tags = tags ? String(tags).trim() : '';
+        tags = tags
+            .split(/\s+/)
+            .filter(Boolean)
+            .map(tag => '#' + tag.replace(/^#+/, '').replace(/\s+/g, ''))
+            .join(' ');
+    }
+    if (!caption && !tags) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+        <div class="glass-card rounded-2xl p-5 mb-6 border border-cyan-500/25 shadow-lg">
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div class="flex items-center space-x-2 text-cyan-300 font-extrabold text-xs tracking-wide">
+                    <i class="fa-solid fa-hashtag text-cyan-400"></i>
+                    <span>CAPTION & HASHTAG SIAP COPY</span>
+                </div>
+                <button type="button" onclick="copySocialPack()" class="text-[10px] bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-100 px-3 py-1.5 rounded-lg border border-cyan-500/30 font-bold uppercase tracking-wide">
+                    <i class="fa-solid fa-copy mr-1"></i>Copy Semua
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Caption</span>
+                        <button type="button" onclick="copyText('socialCaptionOut')" class="text-[10px] text-gray-400 hover:text-white"><i class="fa-solid fa-copy mr-1"></i>Copy</button>
+                    </div>
+                    <textarea id="socialCaptionOut" rows="3" class="w-full bg-black/40 rounded-xl p-3 text-xs text-gray-200 resize-none border border-white/5 focus:border-cyan-500/40 outline-none">${escapeHtml(caption)}</textarea>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Hashtag</span>
+                        <button type="button" onclick="copyText('socialHashtagOut')" class="text-[10px] text-gray-400 hover:text-white"><i class="fa-solid fa-copy mr-1"></i>Copy</button>
+                    </div>
+                    <textarea id="socialHashtagOut" rows="3" class="w-full bg-black/40 rounded-xl p-3 text-xs text-gray-200 resize-none border border-white/5 focus:border-cyan-500/40 outline-none">${escapeHtml(tags)}</textarea>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderDirectorIntent(breakdown) {
+    return;
+}
+
+function renderEpisodeBar() {
+    const el = document.getElementById('episodeBar');
+    const label = document.getElementById('resultEpisodeLabel');
+    const total = Math.min(5, Number(state.episodeCount) || 1);
+    const cur = Number(state.currentEpisode) || 1;
+    if (label) {
+        label.textContent = total > 1
+            ? ('Episode ' + cur + ' / ' + total + ' — tiap part mandiri, cerita menyambung')
+            : 'Storyboard Composite Sheets & Timed Motion Prompts';
+    }
+    if (!el) return;
+    if (total <= 1) { el.innerHTML = ''; return; }
+    const doneCount = (state.episodeSeries || []).length;
+    const tabs = (state.episodeSeries || []).map(ep => {
+        const on = ep.episode === cur;
+        return `<button type="button" onclick="showEpisode(${ep.episode})" class="min-w-[108px] px-5 py-3 rounded-xl text-sm font-extrabold uppercase tracking-wider border-2 transition shadow-md ${on ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-300 shadow-purple-500/30' : 'bg-white/10 text-white border-white/20 hover:bg-white/20 hover:border-purple-400/50'}">Episode ${ep.episode}</button>`;
+    }).join('');
+    const canNext = doneCount > 0 && doneCount < total;
+    const nextBtn = canNext
+        ? `<button type="button" onclick="continueNextEpisode()" class="px-5 py-3 btn-gradient-primary text-white text-xs font-extrabold rounded-xl uppercase tracking-wide"><i class="fa-solid fa-forward mr-1"></i>Lanjut Episode ${doneCount + 1} / ${total}</button>`
+        : '';
+    el.innerHTML = `<div class="flex items-center justify-between gap-3 flex-wrap bg-black/30 border border-purple-500/20 rounded-2xl p-4">
+        <div class="flex items-center gap-3 flex-wrap">${tabs}</div>
+        ${nextBtn}
+    </div>`;
+}
+
+function showEpisode(n) {
+    const ep = (state.episodeSeries || []).find(e => e.episode === n);
+    if (!ep) return;
+    state.currentEpisode = n;
+    currentStoryboardHistoryId = ep.historyId || currentStoryboardHistoryId;
+    state.directorData = ep.breakdown;
+    renderDirectorIntent(ep.breakdown);
+    renderSocialPack(ep.breakdown);
+    renderEpisodeBar();
+    renderStoryboardResults(ep.breakdown, ep.images);
+}
+
+function copySocialPack() {
+    const c = document.getElementById('socialCaptionOut')?.value || '';
+    const h = document.getElementById('socialHashtagOut')?.value || '';
+    const text = [c, h].filter(Boolean).join('\n\n');
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => alert('Caption & hashtag disalin.')).catch(() => {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+            alert('Caption & hashtag disalin.');
+        });
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        alert('Caption & hashtag disalin.');
+    }
+}
+
+function resolveStoryboardLanguage(config) {
+    const requested = String(config && config.language || '').trim();
+    if (requested && !/^auto$/i.test(requested)) return requested;
+    const story = String(config && config.story || '');
+    const indonesianSignals = (story.match(/\b(?:yang|dan|dengan|untuk|dari|ini|itu|tidak|akan|saya|aku|kamu|kita|mereka|sebuah|seorang|buat|bikin|cerita|tentang|adegan|dialog)\b/gi) || []).length;
+    const englishSignals = (story.match(/\b(?:the|and|with|for|from|this|that|not|will|you|we|they|a|an|story|about|scene|dialogue)\b/gi) || []).length;
+    return indonesianSignals >= englishSignals ? 'Bahasa Indonesia' : 'English';
+}
+
+function revealCompletedScenePrompts(sceneIdx, scene) {
+    if (!scene || !scene.sceneGenerated) return;
+    const imagePrompt = document.getElementById('masterImagePrompt_' + sceneIdx);
+    const videoPrompt = document.getElementById('masterVideoPrompt_' + sceneIdx);
+    scene.masterVideoPrompt = enforceCleanVideoOpening(scene.masterVideoPrompt);
+    if (imagePrompt) imagePrompt.value = scene.masterImagePrompt || '';
+    if (videoPrompt) videoPrompt.value = scene.masterVideoPrompt || '';
+    document.getElementById('scenePromptPanel_' + sceneIdx)?.classList.remove('hidden');
+}
+
+async function renderStoryboardResults(breakdown, cachedImages) {
+    (breakdown.scenes || []).forEach(scene => { scene.masterVideoPrompt = enforceCleanVideoOpening(scene.masterVideoPrompt); });
+    const scenesContainer = document.getElementById('scenesContainer');
+    scenesContainer.innerHTML = breakdown.scenes.map((scene, idx) => `
+        <div class="glass-card rounded-2xl p-4 lg:p-6 border border-white/10 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-cyan-400 to-pink-500"></div>
+            <div class="flex items-stretch gap-4 border-b border-white/10 pb-5 mb-6 flex-wrap">
+                <div class="w-24 h-24 shrink-0 rounded-xl overflow-hidden border border-purple-400/40 bg-gradient-to-br from-purple-600 to-indigo-700 text-white shadow-lg shadow-purple-900/30 flex flex-col items-center justify-center">
+                    <span class="text-[10px] font-extrabold uppercase tracking-widest text-purple-100">Episode ${state.currentEpisode}</span>
+                    <strong class="text-5xl leading-none font-black tracking-tight">${scene.sceneNumber || (idx + 1)}</strong>
+                    <span class="text-[10px] font-extrabold uppercase tracking-widest text-indigo-100">Adegan</span>
+                </div>
+                <div class="min-w-[180px] flex-1 flex flex-col justify-center">
+                    <div class="flex items-center gap-2 flex-wrap mb-1.5">
+                        <span class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-cyan-300">Episode ${state.currentEpisode} · Adegan ${scene.sceneNumber || (idx + 1)}</span>
+                    </div>
+                    <h3 class="text-white font-extrabold text-lg lg:text-xl leading-tight drop-shadow-sm">${scene.title || 'Continuous Narrative Arc'}</h3>
+                    <div class="flex items-center gap-2 flex-wrap mt-3">
+                        <span class="text-[10px] bg-black/40 text-gray-300 px-2.5 py-1 rounded-lg border border-white/10 font-mono shadow-inner flex items-center gap-1.5"><i class="fa-solid fa-stopwatch text-gray-400"></i> ${state.durationPerScene}</span>
+                        <span class="text-[10px] bg-black/40 text-gray-300 px-2.5 py-1 rounded-lg border border-white/10 font-mono shadow-inner flex items-center gap-1.5"><i class="fa-solid fa-border-all text-gray-400"></i> ${state.shotsPerScene} Shot</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 self-center ml-auto">
+                    <button id="btnGenerateScene_${idx}" onclick="generateStoryboardScene(${idx})" class="scene-generate-btn px-4 py-2 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 text-[11px] font-bold rounded-lg border border-emerald-500/40 transition"><i class="fa-solid fa-play mr-1"></i>${scene.sceneGenerated ? 'Generated' : 'Generate Scene'}</button>
+                </div>
+            </div>
+            ${scene.continuityToNext ? `<div class="text-[10px] text-gray-500 mb-5"><span class="text-cyan-400 font-bold">Transisi ke scene berikutnya:</span> ${escapeHtml(scene.continuityToNext)}</div>` : ''}
+
+            <!-- Storyboard Canvas Preview (Constrained for elegance) -->
+            <div class="max-w-2xl mx-auto mb-8">
+                <div id="sceneImgContainer_${idx}" class="relative bg-black/90 rounded-2xl overflow-hidden border border-white/10 flex items-center justify-center min-h-[320px] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.8)]">
+                    <!-- Loading State -->
+                    <div id="sceneImgLoading_${idx}" class="hidden absolute inset-0 z-20 flex flex-col items-center justify-center gap-5 bg-black/75 backdrop-blur-sm">
+                        <!-- Neon ring loader -->
+                        <div class="relative w-16 h-16 flex items-center justify-center">
+                            <div class="absolute inset-0 rounded-full border-2 border-purple-500/20"></div>
+                            <div class="absolute inset-0 rounded-full border-2 border-transparent border-t-pink-500 animate-spin" style="animation-duration:1s"></div>
+                            <div class="absolute inset-2 rounded-full border-2 border-transparent border-b-cyan-500 animate-spin" style="animation-duration:1.5s;animation-direction:reverse"></div>
+                            <div class="absolute inset-4 rounded-full border-2 border-transparent border-r-yellow-400 animate-spin" style="animation-duration:0.8s;animation-direction:reverse"></div>
+                        </div>
+                        <p class="text-[11px] text-white/60 font-medium tracking-wide">tunggu sebentar ya Bos,<br>masih di masakin...</p>
+                    </div>
+
+                    <!-- Empty State when image not yet rendered -->
+                    <div id="sceneImgEmpty_${idx}" class="${cachedImages?.[idx] ? 'hidden' : ''} flex flex-col items-center justify-center p-8 text-center gap-3 z-10">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center shadow-lg shadow-purple-500/10">
+                            <i class="fa-solid fa-clapperboard text-2xl text-purple-300"></i>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-sm font-bold text-white tracking-wide">Adegan Ini Belum Di-render</p>
+                            <p class="text-xs text-gray-400 max-w-sm">Naskah visual & dialog sudah siap. Klik tombol di bawah untuk membuat gambar AI.</p>
+                        </div>
+                        <button type="button" onclick="generateStoryboardScene(${idx})" class="mt-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/25 flex items-center gap-2 transform hover:scale-105 transition">
+                            <i class="fa-solid fa-play text-amber-300"></i>
+                            <span>GENERATE GAMBAR ADEGAN INI</span>
+                        </button>
+                    </div>
+
+                    <!-- Error State if generation fails -->
+                    <div id="sceneImgError_${idx}" class="hidden flex flex-col items-center justify-center p-8 text-center gap-3 z-10">
+                        <div class="w-12 h-12 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 text-xl">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <p id="sceneImgErrorText_${idx}" class="text-xs text-red-300 max-w-sm font-medium">Gagal memuat gambar adegan.</p>
+                        <button type="button" onclick="generateStoryboardScene(${idx})" class="mt-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl border border-white/20 transition flex items-center gap-2">
+                            <i class="fa-solid fa-arrows-rotate text-purple-400"></i>
+                            <span>Coba Lagi</span>
+                        </button>
+                    </div>
+
+                    <!-- Rendered Image -->
+                    <img id="sceneImg_${idx}" class="hidden w-full h-auto object-contain rounded-2xl transition-opacity duration-500 opacity-0" onload="this.classList.remove('opacity-0')" />
+                </div>
+            </div>
+
+            <div class="flex justify-center gap-2 mb-6 flex-wrap">
+                <button id="btnEditScene_${idx}" onclick="openSceneImageEditModal(${idx})" ${cachedImages?.[idx] ? '' : 'disabled'} class="scene-action-btn px-4 py-2 bg-pink-600/30 hover:bg-pink-600/50 text-pink-200 text-xs font-bold rounded-xl border border-pink-500/40 transition disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Edit Gambar Adegan</button>
+                <button id="btnRegenerateScene_${idx}" onclick="regenerateSceneImage(${idx})" ${cachedImages?.[idx] ? '' : 'disabled'} class="scene-action-btn px-4 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 text-xs font-bold rounded-xl border border-purple-500/40 transition disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-arrows-rotate mr-1"></i>Generate Ulang</button>
+                <button id="downloadImgBtn_${idx}" onclick="downloadSceneImage(${idx})" class="hidden px-4 py-2 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-200 text-xs font-bold rounded-xl border border-cyan-500/40 transition"><i class="fa-solid fa-download mr-1"></i>Download Gambar</button>
+                <button id="btnRenderSceneN8n_${idx}" onclick="renderSceneToN8n(${idx})" class="scene-action-btn px-4 py-2 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 text-xs font-bold rounded-xl border border-emerald-500/40 transition flex items-center gap-1.5"><i class="fa-solid fa-film text-emerald-400"></i><span>Render Video (n8n)</span></button>
+            </div>
+
+            <!-- Image & Video Prompts (Compact 2-col on desktop) -->
+            <div id="scenePromptPanel_${idx}" class="${scene.sceneGenerated || cachedImages?.[idx] || scene.finalAssetState?.imageDataUrl ? '' : 'hidden'} grid grid-cols-1 md:grid-cols-2 gap-6">
+                ${isSilentAudioMode(state) ? '' : `
+                <div class="glass-card p-5 rounded-2xl border border-cyan-500/20 md:col-span-2">
+                    <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+                        <label class="text-[10px] font-bold text-cyan-300 flex items-center gap-2 uppercase tracking-widest">
+                            <i class="fa-solid fa-comments text-cyan-400"></i>
+                            <span>Dialog Scene</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <button id="btnGenerateDialogue_${idx}" onclick="generateSceneDialogue(${idx})" class="text-[10px] bg-cyan-600/25 hover:bg-cyan-600/45 text-cyan-200 px-3 py-1.5 rounded-lg border border-cyan-500/35 font-bold transition">
+                                <i class="fa-solid fa-arrows-rotate mr-1"></i>Regenerate
+                            </button>
+                            <button onclick="saveEditedSceneDialogue(${idx})" class="text-[10px] bg-emerald-600/25 hover:bg-emerald-600/45 text-emerald-200 px-3 py-1.5 rounded-lg border border-emerald-500/35 font-bold transition">
+                                <i class="fa-solid fa-floppy-disk mr-1"></i>Simpan Dialog
+                            </button>
+                        </div>
+                    </div>
+                    <textarea id="dialogueText_${idx}" rows="4" class="w-full bg-black/40 rounded-xl p-3.5 text-[12px] text-gray-200 resize-y font-mono leading-relaxed border border-white/5 focus:border-cyan-500/50 outline-none transition" placeholder="Dialog scene belum dibuat. Klik Regenerate.">${escapeHtml(scene.dialogueOrNarration || '')}</textarea>
+                    <div id="dialogueStatus_${idx}" class="text-[10px] ${scene.dialogueNeedsRepair ? 'text-amber-300' : scene.dialogueOrNarration ? 'text-emerald-300' : 'text-gray-500'} mt-2 font-mono">${scene.dialogueNeedsRepair ? escapeHtml(getDialogueRecoveryMessage(scene.sceneNumber || idx + 1, false)) : scene.dialogueOrNarration ? 'Dialog sudah dibuat dan prompt video siap digunakan.' : 'Dialog dibuat saat adegan diproses.'}</div>
+                </div>
+                `}
+                <div class="glass-card p-5 rounded-2xl border border-white/5 flex flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="text-[10px] font-bold text-purple-300 flex items-center gap-2 uppercase tracking-widest">
+                            <i class="fa-solid fa-image text-purple-400"></i>
+                            <span>Image Prompt</span>
+                        </label>
+                        <button onclick="copyText('masterImagePrompt_${idx}')" class="text-[10px] bg-white/5 hover:bg-white/10 text-gray-300 px-2.5 py-1 rounded border border-white/10 transition font-mono flex items-center gap-1"><i class="fa-solid fa-copy"></i> Copy</button>
+                    </div>
+                    <textarea id="masterImagePrompt_${idx}" rows="5" class="w-full bg-black/40 rounded-xl p-3.5 text-[11px] text-gray-300 resize-none font-mono leading-relaxed border border-white/5 flex-1 focus:border-purple-500/50 outline-none transition">${escapeHtml(scene.masterImagePrompt || '')}</textarea>
+                </div>
+
+                <div class="glass-card p-5 rounded-2xl border border-white/5 flex flex-col">
+                    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+                        <label class="text-[10px] font-bold text-purple-300 flex items-center gap-2 uppercase tracking-widest">
+                            <i class="fa-solid fa-video text-purple-400"></i>
+                            <span>Video Prompt</span>
+                        </label>
+                        <div class="flex items-center space-x-2">
+                            ${isSilentAudioMode(state) ? '' : `<button id="btnGenVoice_${idx}" onclick="generateAIVoiceForScene(${idx})" class="text-[10px] bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 px-3 py-1 rounded-lg border border-purple-500/30 font-bold flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-microphone text-purple-400"></i> AI Voice
+                            </button>`}
+                            <button onclick="copyText('masterVideoPrompt_${idx}')" class="text-[10px] bg-white/5 hover:bg-white/10 text-gray-300 px-2.5 py-1 rounded border border-white/10 transition font-mono flex items-center gap-1"><i class="fa-solid fa-copy"></i> Copy</button>
+                        </div>
+                    </div>
+                    <textarea id="masterVideoPrompt_${idx}" rows="5" class="w-full bg-black/40 rounded-xl p-3.5 text-[11px] text-gray-300 resize-none font-mono leading-relaxed border border-white/5 flex-1 focus:border-purple-500/50 outline-none transition">${escapeHtml(scene.masterVideoPrompt)}</textarea>
+                    <div id="voiceStatus_${idx}" class="hidden text-[10px] text-purple-300 mt-2 font-mono bg-purple-900/20 p-2 rounded-lg text-center"></div>
+                    <div id="voiceAudioContainer_${idx}"></div>
+                </div>
+            </div>
+
+        </div>
+    `).join('');
+
+    if (Array.isArray(cachedImages) && cachedImages.length) {
+        cachedImages.forEach((src, i) => {
+            const imgElem = document.getElementById('sceneImg_' + i);
+            const loadingElem = document.getElementById('sceneImgLoading_' + i);
+            const emptyElem = document.getElementById('sceneImgEmpty_' + i);
+            const errorElem = document.getElementById('sceneImgError_' + i);
+            if (imgElem && src) {
+                imgElem.src = src;
+                imgElem.classList.remove('hidden', 'opacity-0');
+                if (emptyElem) emptyElem.classList.add('hidden');
+                if (errorElem) errorElem.classList.add('hidden');
+            }
+            if (loadingElem) loadingElem.classList.add('hidden');
+            document.getElementById('downloadImgBtn_' + i)?.classList.remove('hidden');
+            const generateButton = document.getElementById('btnGenerateScene_' + i);
+            if (generateButton && src) {
+                generateButton.innerHTML = '<i class="fa-solid fa-check mr-1"></i>Generated';
+                generateButton.classList.add('bg-emerald-500/20', 'text-emerald-100');
+            }
+            document.getElementById('btnEditScene_' + i)?.removeAttribute('disabled');
+            document.getElementById('btnRegenerateScene_' + i)?.removeAttribute('disabled');
+        });
+        renderEpisodeBar();
+        return;
+    }
+
+    await ensureStoryboardHistoryRecord(breakdown);
+    renderEpisodeBar();
+
+}
+
+async function ensureStoryboardHistoryRecord(breakdown) {
+    let episode = (state.episodeSeries || []).find(item => item.episode === state.currentEpisode);
+    if (episode) {
+        episode.breakdown = breakdown;
+        if (!Array.isArray(episode.images)) episode.images = [];
+        return episode;
+    }
+    const record = {
+        id: 'sb_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+        ownerId: getHistoryOwnerId(),
+        timestamp: new Date().toISOString(),
+        title: (STORYBOARD_MODE_REGISTRY[state.storyboardMode]?.label || 'Storyboard') + ' · ' + (state.episodeCount > 1 ? ('Ep ' + state.currentEpisode + ': ') : '') + state.story.substring(0, 40) + '...',
+        sceneCount: state.sceneCount,
+        shotsPerScene: state.shotsPerScene,
+        aspectRatio: state.aspectRatio,
+        visualStyle: state.visualStyle,
+        configSnapshot: {
+            story: state.story,
+            storyboardMode: state.storyboardMode,
+            sceneCount: state.sceneCount,
+            shotsPerScene: state.shotsPerScene,
+            durationPerScene: state.durationPerScene,
+            aspectRatio: state.aspectRatio,
+            visualStyle: state.visualStyle,
+            customStyle: state.customStyle,
+            animationStyle: state.animationStyle,
+            animationCustomStyle: state.animationCustomStyle,
+            animationGenre: state.animationGenre,
+            episodeCount: state.episodeCount,
+            audioMode: state.audioMode,
+            language: state.language
+        },
+        breakdown,
+        images: []
+    };
+    await saveToHistory(record);
+    currentStoryboardHistoryId = record.id;
+    episode = { episode: state.currentEpisode, breakdown, images: [], historyId: record.id };
+    state.episodeSeries = (state.episodeSeries || []).filter(item => item.episode !== state.currentEpisode);
+    state.episodeSeries.push(episode);
+    return episode;
+}
+
+function setSceneGenerationLock(active, activeIndex = -1) {
+    const previousIndex = sceneGenerationIndex;
+    sceneGenerationActive = active;
+    sceneGenerationIndex = active ? activeIndex : -1;
+    if (scenePercentageInterval) {
+        clearInterval(scenePercentageInterval);
+        scenePercentageInterval = null;
+    }
+    if (active) {
+        scenePercentage = 0;
+        scenePercentageCeiling = 19;
+        setScenePercentage(0);
+        scenePercentageInterval = setInterval(() => {
+            if (scenePercentage < scenePercentageCeiling) {
+                const remaining = scenePercentageCeiling - scenePercentage;
+                const step = Math.max(0.035, remaining * (remaining > 12 ? 0.045 : 0.018));
+                setScenePercentage(Math.min(scenePercentageCeiling, scenePercentage + step));
+            }
+        }, 90);
+    }
+    document.querySelectorAll('.scene-action-btn, #btnCreateStoryboard').forEach(button => {
+        button.disabled = active;
+    });
+    if (!active) {
+        const previousButton = previousIndex >= 0 ? document.getElementById('btnGenerateScene_' + previousIndex) : null;
+        if (previousButton && !previousButton.classList.contains('bg-emerald-500/20')) {
+            previousButton.innerHTML = '<i class="fa-solid fa-play mr-1"></i>Generate Scene';
+            previousButton.removeAttribute('role');
+            previousButton.removeAttribute('aria-valuemin');
+            previousButton.removeAttribute('aria-valuemax');
+            previousButton.removeAttribute('aria-valuenow');
+        }
+        document.querySelectorAll('[id^="btnEditScene_"], [id^="btnRegenerateScene_"]').forEach(button => {
+            const sceneIdx = button.id.match(/_(\d+)$/)?.[1];
+            const image = sceneIdx !== undefined ? document.getElementById('sceneImg_' + sceneIdx) : null;
+            button.disabled = !image || !image.src || image.classList.contains('hidden');
+        });
+    }
+    const activeButton = activeIndex >= 0 ? document.getElementById('btnGenerateScene_' + activeIndex) : null;
+    if (activeButton) {
+        activeButton.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-1"></i>0%';
+        activeButton.setAttribute('role', 'progressbar');
+        activeButton.setAttribute('aria-valuemin', '0');
+        activeButton.setAttribute('aria-valuemax', '100');
+        activeButton.setAttribute('aria-valuenow', '0');
+    }
+}
+
+async function generateStoryboardScene(sceneIdx) {
+    if (sceneGenerationActive || storyboardGenerating) {
+        const activeScene = sceneGenerationIndex >= 0 ? sceneGenerationIndex + 1 : 1;
+        showCanvasNotice('sabar Boss, pak TRENDORA masih masak adegan ' + activeScene);
+        return;
+    }
+    let scene = state.directorData?.scenes?.[sceneIdx];
+    if (!scene) return;
+    let episode = (state.episodeSeries || []).find(item => item.episode === state.currentEpisode);
+    episode = episode || await ensureStoryboardHistoryRecord(state.directorData);
+    let loader = document.getElementById('sceneImgLoading_' + sceneIdx);
+    if (loader) loader.classList.remove('hidden');
+    setSceneGenerationLock(true, sceneIdx);
+    try {
+        if (!scene.sceneGenerated) {
+            throwIfStoryboardCancelled();
+            setScenePhase(1, 20);
+            updateLoadingStatus('Menyusun prompt adegan ' + (sceneIdx + 1) + '/' + state.directorData.scenes.length + '...', 2);
+            const cast = state.directorData.masterVisualIdentity?.characters || [];
+            const sceneBlueprint = Object.assign({}, scene, {
+                masterImagePrompt: '',
+                masterVideoPrompt: ''
+            });
+            const promptPackage = await generateScenePromptPackage(state, sceneBlueprint, cast);
+            Object.assign(scene, promptPackage);
+            setScenePhase(20, 50);
+            if (!isSilentAudioMode(state)) {
+                try {
+                    await generateSceneDialogue(sceneIdx, { silent: true });
+                } catch (dialogueError) {
+                    scene.dialogueNeedsRepair = true;
+                    scene.dialogueViolations = Array.from(new Set((scene.dialogueViolations || []).concat(['dialogue_generation_failed'])));
+                    const dialogueStatus = document.getElementById('dialogueStatus_' + sceneIdx);
+                    if (dialogueStatus) {
+                        dialogueStatus.textContent = getDialogueRecoveryMessage(scene.sceneNumber || sceneIdx + 1, true);
+                        dialogueStatus.className = 'text-[10px] text-amber-300 mt-2 font-mono';
+                    }
+                    console.warn('[Scene Audio] Dialog scene ' + (scene.sceneNumber || sceneIdx + 1) + ' belum berhasil dibuat:', dialogueError && dialogueError.message);
+                }
+            }
+            setScenePhase(50, 65);
+            applyStoryboardSceneLocks(state.directorData, sceneIdx, state);
+            scene = state.directorData.scenes[sceneIdx];
+            scene.sceneGenerated = !isPlacePromotion(state);
+            await renderStoryboardResults(state.directorData, episode.images);
+        }
+        await ensureFinalCommercialCta(state.directorData, state, sceneIdx);
+        scene = state.directorData.scenes[sceneIdx];
+        const previousImage = sceneIdx > 0 ? episode.images[sceneIdx - 1] : null;
+        const image = document.getElementById('sceneImg_' + sceneIdx);
+        const emptyElem = document.getElementById('sceneImgEmpty_' + sceneIdx);
+        const errorElem = document.getElementById('sceneImgError_' + sceneIdx);
+        if (emptyElem) emptyElem.classList.add('hidden');
+        if (errorElem) errorElem.classList.add('hidden');
+        loader = document.getElementById('sceneImgLoading_' + sceneIdx) || loader;
+        if (loader) loader.classList.remove('hidden');
+        setScenePhase(65, 90);
+        const imgDataUrl = await generateStoryboardImageForPrompt(scene.masterImagePrompt, state.episodePlate, null, {
+            sceneIdx,
+            prevSceneAnchor: previousImage
+        });
+        scene.sceneGenerated = true;
+        if (sceneIdx === 0) state.episodePlate = imgDataUrl;
+        episode.images[sceneIdx] = imgDataUrl;
+        scene.finalAssetState = {
+            imageDataUrl: imgDataUrl,
+            imagePrompt: scene.masterImagePrompt,
+            videoPrompt: scene.masterVideoPrompt,
+            assetRefs: scene.promptCompiler && scene.promptCompiler.assetRefs || {},
+            updatedAt: new Date().toISOString()
+        };
+        revealCompletedScenePrompts(sceneIdx, scene);
+        setScenePhase(90, 98);
+        if (image) {
+            image.src = imgDataUrl;
+            image.classList.remove('hidden', 'opacity-0');
+        }
+        if (emptyElem) emptyElem.classList.add('hidden');
+        if (errorElem) errorElem.classList.add('hidden');
+        if (loader) loader.classList.add('hidden');
+        const generateButton = document.getElementById('btnGenerateScene_' + sceneIdx);
+        if (generateButton) {
+            generateButton.innerHTML = '<i class="fa-solid fa-check mr-1"></i>Generated';
+            generateButton.classList.add('bg-emerald-500/20', 'text-emerald-100');
+        }
+        document.getElementById('downloadImgBtn_' + sceneIdx)?.classList.remove('hidden');
+        document.getElementById('btnEditScene_' + sceneIdx)?.removeAttribute('disabled');
+        document.getElementById('btnRegenerateScene_' + sceneIdx)?.removeAttribute('disabled');
+        try {
+            runStoryboardQualityGate(state.directorData, state, { requireRenderedAssets: true, sceneIndex: sceneIdx });
+        } catch (gateError) {
+            console.warn('[Quality Gate] Scene ' + (sceneIdx + 1) + ' warning:', gateError && gateError.message);
+            showCanvasNotice('Adegan ' + (sceneIdx + 1) + ' tetap ditampilkan. ' + (gateError && gateError.message || 'Validasi tidak lolos.'), 'error');
+        }
+        renderEpisodeBar();
+        finishSceneGenerationUI(sceneIdx);
+        await persistCurrentStoryboardHistory();
+    } catch (error) {
+        if (error.code === 'CANCELLED' || storyboardCancelled) return;
+        console.warn('Scene ' + (sceneIdx + 1) + ' Image Gen Failed:', error);
+        if (loader) loader.classList.add('hidden');
+        const errElem = document.getElementById('sceneImgError_' + sceneIdx);
+        const errText = document.getElementById('sceneImgErrorText_' + sceneIdx);
+        if (errText) errText.innerText = (error && error.message) ? error.message : 'Gagal membuat gambar adegan.';
+        if (errElem) errElem.classList.remove('hidden');
+        showCanvasNotice('Gagal membuat gambar adegan ' + (sceneIdx + 1) + ': ' + (error && error.message ? error.message : 'Silakan coba lagi.'), 'error');
+    } finally {
+        const completedImage = document.getElementById('sceneImg_' + sceneIdx);
+        if (completedImage && completedImage.src && !completedImage.classList.contains('hidden')) {
+            finishSceneGenerationUI(sceneIdx);
+        }
+        setSceneGenerationLock(false);
+    }
+}
+
+
+function pickGeminiImageDataUrl(data) {
+    const parts = (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+    for (let i = 0; i < parts.length; i++) {
+        const blob = parts[i].inlineData || parts[i].inline_data;
+        if (blob && blob.data) return 'data:' + (blob.mimeType || blob.mime_type || 'image/png') + ';base64,' + blob.data;
+    }
+    return '';
+}
+
+function getSceneImageDataUrl(sceneIdx) {
+    if (sceneIdx < 0 || !state.directorData?.scenes?.[sceneIdx]) return null;
+    const scene = state.directorData.scenes[sceneIdx];
+    if (scene.editedImage && scene.editedImage.indexOf('data:image/') === 0) return scene.editedImage;
+    if (scene.regeneratedImage && scene.regeneratedImage.indexOf('data:image/') === 0) return scene.regeneratedImage;
+
+    const img = document.getElementById('sceneImg_' + sceneIdx);
+    if (img && img.src && img.src.indexOf('data:image/') === 0) return img.src;
+
+    const ep = (state.episodeSeries || []).find(e => e.episode === state.currentEpisode);
+    const cached = ep?.images?.[sceneIdx];
+    if (cached && cached.indexOf('data:image/') === 0) return cached;
+    return null;
+}
+
+function collectAdjacentSceneContinuityRefs(sceneIdx) {
+    const refs = [];
+    const scenes = state.directorData?.scenes || [];
+    const summarizeScene = (scene, label) => {
+        if (!scene) return null;
+        const shotSummary = (scene.shots || [])
+            .slice(0, 6)
+            .map(s => 'Shot ' + (s.shotNumber || '') + ': ' + [s.action, s.camera].filter(Boolean).join(' | '))
+            .filter(Boolean)
+            .join(' / ');
+        return {
+            label,
+            text: [
+                'title=' + (scene.title || 'Untitled'),
+                'locationId=' + (scene.locationId || 'same continuity world'),
+                'timeOfDay=' + (scene.timeOfDay || 'continuous'),
+                'wardrobeBeat=' + (scene.wardrobeBeat || 'same wardrobe continuity'),
+                'sceneBeat=' + (scene.sceneBeat || scene.summary || ''),
+                'shots=' + shotSummary
+            ].filter(Boolean).join('; ')
+        };
+    };
+    const previous = summarizeScene(scenes[sceneIdx - 1], 'previous scene');
+    const next = summarizeScene(scenes[sceneIdx + 1], 'next scene');
+    if (previous) refs.push(previous);
+    if (next) refs.push(next);
+    return refs;
+}
+
+async function generateStoryboardImageForPrompt(promptText, identityPlate, continuityRefs, options = {}) {
+    // Grid anchor — shot-specific rules built from the fixed storyboardGridLock
+    const aspectRatio = state.aspectRatio || '9:16';
+    // V5.0 (Isu #2): require BOTH visualStyle === 'Auto Caption Overlay'
+    // AND the explicit opt-in flag. The visualStyle alone is no
+    // longer sufficient — a stale or accidental selection cannot
+    // re-enable text rendering.
+    const hasOverlay = state.visualStyle === 'Auto Caption Overlay' && state.visualStyleExplicitOverlay === true;
+
+    const textRule = hasOverlay
+        ? 'Auto Caption Overlay: short text in ' + (state.language || 'Bahasa Indonesia') + ', icons, callouts as cinematic overlay. NEVER add any phone number, WhatsApp contact, social media handle (@username), email, URL, QR code, brand logo, watermark, or third-party brand mark — even in overlay mode.'
+        : '';
+
+    // Text/no-text rules already enforced by STORYBOARD GRID LOCK above — do NOT re-emit conflicting "no text" rules here.
+    const currentProductLock = buildProductLock(
+        state.directorData && state.directorData.masterVisualIdentity,
+        !!(state.productReference && state.productReference.length),
+        state
+    );
+    const currentSceneIndex = Number.isInteger(options.sceneIdx)
+        ? options.sceneIdx
+        : Array.isArray(state.directorData && state.directorData.scenes)
+        ? state.directorData.scenes.findIndex(scene => scene && scene.masterImagePrompt === promptText)
+        : -1;
+    const currentScene = currentSceneIndex >= 0 && state.directorData && state.directorData.scenes
+        ? state.directorData.scenes[currentSceneIndex]
+        : null;
+    const productIntegrationLock = buildProductIntegrationLock(
+        state.directorData && state.directorData.masterVisualIdentity,
+        currentScene,
+        !!(state.productReference && state.productReference.length)
+    );
+    const artifactLock = buildNoTextArtifactLock({
+        visualStyle: state.visualStyle
+    });
+    const overlayLock = buildAutoCaptionOverlayLock({
+        visualStyle: state.visualStyle,
+        language: state.language
+    });
+    const strictVisualGate = currentSceneIndex >= 0
+        ? buildStrictVisualConsistencyGate(state.directorData, currentSceneIndex, {
+            storyboardMode: state.storyboardMode,
+            visualStyle: state.visualStyle,
+            customStyle: state.customStyle,
+            animationStyle: state.animationStyle,
+            animationCustomStyle: state.animationCustomStyle,
+            shotsPerScene: state.shotsPerScene
+        })
+        : '';
+    const finalSceneLock = currentSceneIndex >= 0
+        ? buildFinalSceneAntiRepeatLock(state.directorData, currentSceneIndex, {
+            shotsPerScene: state.shotsPerScene
+        })
+        : '';
+    const extraRules = [
+        strictVisualGate,
+        buildLocalDemographicLock(state),
+        artifactLock,
+        overlayLock,
+        finalSceneLock,
+        currentProductLock,
+        productIntegrationLock,
+        'PRODUCT SCALE: keep hero product true-to-life size in every panel; camera distance may change, product-to-body ratio may not.',
+        'ASPECT RATIO: ' + aspectRatio + '.'
+    ].filter(Boolean).join('\n');
+    const identityPlateRule = identityPlate
+        ? 'REFERENCE IMAGE USAGE FOR REGENERATE: the attached current storyboard image is the authoritative visual anchor for the existing scene. Preserve the exact hero product model, packaging silhouette, proportions, colorway, material, label/logo placement, markings, and product-to-body scale from this image and the PRODUCT MASTER REFERENCE. You may repair visible defects and vary only the requested camera, pose, blocking, lighting nuance, or crop. Do NOT copy face drift, age drift, warped anatomy, merged panels, wrong cast count, or bad grid. The text prompt and STORYBOARD GRID LOCK override only those defects.'
+        : '';
+    const continuityList = Array.isArray(continuityRefs) ? continuityRefs.filter(ref => ref && ref.text) : [];
+    const adjacentRule = continuityList.length
+        ? 'ADJACENT SCENE CONTINUITY CONTEXT (TEXT ONLY, NO IMAGE COPY): Use neighboring summaries only to understand story order and fixed character identity. DO NOT recreate, repeat, paste, preview, flash back to, or imitate previous/next scene composition, location, props, wardrobe, lighting setup, pose, activity, or background. The CURRENT SCENE prompt and SCENE ISOLATION LOCK are the only visual target. If a neighboring summary conflicts with the current locationId/wardrobeBeat, ignore the neighboring visual details.\n' + continuityList.map(ref => ref.label.toUpperCase() + ': ' + ref.text).join('\n')
+        : '';
+    const sceneDeltaRule = currentSceneIndex >= 0
+        ? buildSceneDeltaLock(state.directorData, currentSceneIndex)
+        : '';
+    const currentSceneAnchorRule = options.currentSceneImage
+        ? 'CURRENT SCENE IMAGE ANCHOR: the attached image is the exact scene being regenerated. Treat it as the authoritative continuity anchor for the hero product and all non-target visual details. Preserve product identity, packaging, silhouette, logo/label, color/material, and scale exactly; change only the requested creative variation or audited repair.'
+        : '';
+    const prevAnchorRule = options.prevSceneAnchor
+        ? 'PREVIOUS SCENE VISUAL ANCHOR (image of scene ' + currentSceneIndex + ' attached): use it to keep visual continuity of characters, wardrobe colors, location architecture, and lighting family. DO NOT copy its composition, pose, blocking, or specific framing — the current scene\'s text prompt and STORYBOARD GRID LOCK are the primary visual target.'
+        : '';
+    const driftSentinel = 'DRIFT SENTINEL — applies to every panel: if any instruction above seems to conflict with locked identity, location, wardrobe, or scene beat, the LOCK wins. Do NOT invent new cast, swap wardrobe colors, change room architecture, change face/hair/skin/body, age-shift, or merge characters. If drift is unavoidable, fail this scene rather than drift.';
+
+    const storyStyleKey = String(state.visualStyle || '').toLowerCase();
+    const photorealismAnchor = /realistic|photography|cinematic|auto/.test(storyStyleKey)
+        ? 'PHOTOREALISTIC DSLR CAMERA OUTPUT — ABSOLUTE NON-NEGOTIABLE LOCK.\n\nYou are a real camera. Not a 3D engine, not an animation studio, not an illustrator. Every shot in every panel of this storyboard must read as a real photograph captured by a full-frame DSLR. Skin shows real pores and natural texture. Clothing shows real fabric weave. Reflections obey real physics. Color science matches actual daylight. Lens optics behave like a real 85mm portrait lens: shallow depth of field on the focal subject, natural bokeh elsewhere.\n\nTreat the entire output as a printed photograph contact sheet from a real photo shoot — NOT as illustration, NOT as 3D animation, NOT as cartoon, NOT as manga, NOT as comic, NOT as watercolor.\n\nHard rules:\n- No plastic skin, no doll-like eyes, no stylized 3D look\n- No oversaturated color grading, no painterly lighting\n- No toy-like or chibi proportions\n- No fake UI, no fake text overlay\n- No vector flat shading, no cel-shading, no ink outlines\n\nMandatory photographic anchors:\n- Camera: full-frame DSLR, 85mm portrait lens, f/1.8–f/4 depending on depth need\n- Lighting: real-world (sunlight, window light, practical lamp). NEVER stylized colored gel lights.\n- Subject: real human anatomy, real fabric, real materials, real textures\n- Post: RAW look — minimal grading, natural dynamic range\n\nFailure to comply = regenerate the whole storyboard with these rules applied.'
+        : '';
+
+    // promptText already has gridLock at the start (from applyStoryboardLocks) + scene description
+    // Keep it intact — gridLock is the single source of truth for grid + text rules. Only append short anchors after it.
+    const tail = [extraRules, identityPlateRule, adjacentRule, sceneDeltaRule, currentSceneAnchorRule, prevAnchorRule, driftSentinel, textRule].filter(Boolean).join('\n');
+    const gridCount = Math.max(1, Math.min(6, Number(state.shotsPerScene) || 1));
+    const portraitSixGrid = gridCount === 6 && (aspectRatio === '9:16' || aspectRatio === '4:5' || aspectRatio === '3:4');
+    const finalGridRule = portraitSixGrid
+        ? 'FINAL GRID CHECK — OVERRIDE: Portrait canvas = exactly 3 rows x 2 columns = exactly 6 cells. Row 1 contains cells 1 and 2; Row 2 contains cells 3 and 4; Row 3 contains cells 5 and 6. Every cell is full-size, equal, complete, and used exactly once. Place one tiny number in each cell: 1, 2, 3, 4, 5, 6, with no duplicate numbers.'
+        : 'FINAL GRID CHECK — OVERRIDE: Follow the exact STORYBOARD GRID LOCK geometry for aspect ratio ' + aspectRatio + ' and exactly ' + gridCount + ' panel(s). Count the physical cells before finishing. Each cell contains one complete shot and uses one unique sequential number only.';
+    const finalGridForbidden = 'Never render camera abbreviations or labels, captions, subtitles, dialogue, speech bubbles, titles, logos, watermarks, prompt text, initials, letter prefixes such as P1 or S1, extra panels, merged cells, unequal cells, duplicate panel numbers, or any unregistered visible person. The only permitted text is one bare sequential digit in each cell.';
+    const headerInjection = photorealismAnchor ? photorealismAnchor + '\n\n' : '';
+    const safePromptText = sanitizeStoryboardImagePrompt(promptText);
+    const contents = [{ role: "user", parts: [{ text: headerInjection + (tail ? safePromptText + '\n\n' + tail : safePromptText) + '\n\n' + finalGridRule + '\n' + finalGridForbidden }] }];
+
+    const referenceGroups = [
+        ['CHARACTER REFERENCE IMAGE — use every attached character image as a non-negotiable identity reference. Use the character attached as references; do not change the face and characteristics. Preserve facial structure, hair, skin, body, age, and distinctive features. ' + (state.characterReference || []).map((_, index) => 'Reference ' + (index + 1) + ' is part of the locked cast.').join(' '), state.characterReference],
+        ['PRODUCT REFERENCE IMAGE — use only for hero product design, proportions, and scale. Never interpret as a person.', state.productReference],
+        ['LOCATION REFERENCE IMAGE — use only for environment, architecture, lighting, and background anchors.', state.locationReference]
+    ];
+    referenceGroups.forEach(([label, refs]) => (refs || []).forEach(ref => {
+        contents[0].parts.push({ text: label });
+        const matches = ref.dataUrl.match(/^data:(.+);base64,(.+)$/);
+        if (matches) contents[0].parts.push({ inlineData: { mimeType: matches[1], data: matches[2] } });
+    }));
+
+    if (identityPlate) {
+        const matches = identityPlate.match(/^data:(.+);base64,(.+)$/);
+        if (matches) {
+            contents[0].parts.push({ text: 'EPISODE CONTINUITY ANCHOR — use for cast, wardrobe, location, and lighting continuity only.' });
+            contents[0].parts.push({ inlineData: { mimeType: matches[1], data: matches[2] } });
+        }
+    }
+
+    if (options.currentSceneImage) {
+        const matches = String(options.currentSceneImage).match(/^data:(.+);base64,(.+)$/);
+        if (matches) {
+            contents[0].parts.push({ text: 'CURRENT SCENE IMAGE — authoritative product and scene continuity anchor. Preserve the product exactly; repair only audited defects.' });
+            contents[0].parts.push({ inlineData: { mimeType: matches[1], data: matches[2] } });
+        }
+    }
+
+    if (isPlacePromotion(state)) contents[0].parts.push({ text: buildPlacePromotionContract(state) + '\nPhysical signs already present in the reference are exempt from the no-text/no-logo rule. Preserve their existing placement and appearance; do not invent signs.' });
+
+    if (options.prevSceneAnchor) {
+        const anchorMatch = options.prevSceneAnchor.match(/^data:(.+);base64,(.+)$/);
+        if (anchorMatch) contents[0].parts.push({ inlineData: { mimeType: anchorMatch[1], data: anchorMatch[2] } });
+    }
+
+    throwIfStoryboardCancelled();
+    const imageConfig = aspectRatio ? { aspectRatio: String(aspectRatio).trim() } : null;
+    const requestBody = {
+        contents: contents,
+        generationConfig: Object.assign(
+            { responseModalities: ["IMAGE"] },
+            imageConfig ? { imageConfig } : {}
+        )
+    };
+    const imageModels = [
+        'gemini-3.1-flash-image',
+        'gemini-2.5-flash-image',
+        'gemini-3.1-flash-image-preview'
+    ];
+    const postWithModelFallback = async (payload, retries = 3) => {
+        let lastErr = null;
+        for (const model of imageModels) {
+            const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
+            try {
+                const resp = await fetchWithExponentialBackoff(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal: storyboardAbortCtrl ? storyboardAbortCtrl.signal : undefined
+                }, retries, 90000);
+                if (!resp.ok) throw new Error('Gemini Image API HTTP ' + resp.status);
+                return await resp.json();
+            } catch (err) {
+                lastErr = err;
+                if (err.status === 400 && payload.generationConfig?.imageConfig) {
+                    console.warn('[Gemini Image] 400 with imageConfig, retrying without imageConfig...');
+                    try {
+                        const strippedPayload = JSON.parse(JSON.stringify(payload));
+                        delete strippedPayload.generationConfig.imageConfig;
+                        const resp2 = await fetchWithExponentialBackoff(endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(strippedPayload),
+                            signal: storyboardAbortCtrl ? storyboardAbortCtrl.signal : undefined
+                        }, 1, 90000);
+                        if (resp2.ok) return await resp2.json();
+                    } catch (e2) {
+                        lastErr = e2;
+                    }
+                }
+                if (err.status === 404 || (err.message && err.message.includes('404'))) {
+                    console.warn('[Gemini Image] ' + model + ' returned 404, fallback to next model...');
+                    continue;
+                }
+                throw lastErr || err;
+            }
+        }
+        throw lastErr || new Error('Gagal memanggil Gemini Image API.');
+    };
+
+    let data = await postWithModelFallback(requestBody, 3);
+    let out = pickGeminiImageDataUrl(data);
+    const finishReason = data?.candidates?.[0]?.finishReason
+        || data?.candidates?.[0]?.detailedFinishReason?.recipeRunnerFinishReason
+        || '';
+    if (!out && /NO_IMAGE/i.test(finishReason)) {
+        // Image models can return NO_IMAGE when a long multimodal prompt
+        // mixes dialogue/CTA rules with too many continuity references.
+        // Retry with a compact visual-only request for the same scene.
+        const compactPrompt = [
+            'Create exactly ' + gridCount + ' storyboard panel(s) in ' + aspectRatio + '.',
+            'Use the selected visual style: ' + (state.visualStyle || 'Realistic Photography') + '.',
+            'CURRENT SCENE ONLY: ' + String(currentScene && (currentScene.title || currentScene.sceneBeat || '') || '').slice(0, 600),
+            'VISUAL ACTION: ' + String(currentScene && currentScene.sceneVisualPlan && currentScene.sceneVisualPlan.visualAction || '').slice(0, 900),
+            'SHOTS: ' + String(currentScene && (currentScene.shots || []).map(shot => [shot.timecode, shot.action, shot.camera].filter(Boolean).join(' — ')).join(' / ') || '').slice(0, 1800),
+            'LOCATION: ' + String(currentScene && currentScene.locationId || '') + '. TIME: ' + String(currentScene && currentScene.timeOfDay || '') + '.',
+            'Preserve attached character, product, and location identities. Render only the current scene as a clean storyboard contact sheet.',
+            'No dialogue text, subtitles, CTA text, logos, watermarks, prompt text, merged cells, or extra people. Only one small sequential digit per panel.'
+        ].join('\n');
+        const compactContents = [{ role: 'user', parts: [{ text: compactPrompt }] }];
+        const compactGroups = [
+            ['CHARACTER REFERENCE IMAGE', state.characterReference],
+            ['PRODUCT MASTER/DETAIL REFERENCE IMAGE', state.productReference],
+            ['LOCATION REFERENCE IMAGE', state.locationReference]
+        ];
+        compactGroups.forEach(([label, refs]) => (refs || []).forEach((ref, index) => {
+            const match = ref && String(ref.dataUrl || '').match(/^data:(.+);base64,(.+)$/);
+            if (match) {
+                compactContents[0].parts.push({ text: label + ' ' + (index + 1) + '. Preserve its assigned identity only.' });
+                compactContents[0].parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+            }
+        }));
+        if (options.currentSceneImage) {
+            const currentMatch = String(options.currentSceneImage).match(/^data:(.+);base64,(.+)$/);
+            if (currentMatch) {
+                compactContents[0].parts.push({ text: 'CURRENT SCENE IMAGE — authoritative product continuity anchor. Preserve the exact product design and scale.' });
+                compactContents[0].parts.push({ inlineData: { mimeType: currentMatch[1], data: currentMatch[2] } });
+            }
+        }
+        data = await postWithModelFallback({
+            contents: compactContents,
+            generationConfig: requestBody.generationConfig
+        }, 2);
+        out = pickGeminiImageDataUrl(data);
+    }
+    if (out && isPlacePromotion(state) && Number.isInteger(options.sceneIdx)) {
+        return approvePlaceStoryboardImage(out, state.directorData.scenes[options.sceneIdx], options.sceneIdx, state, {
+            contents,
+            generationConfig: Object.assign({ responseModalities: ['IMAGE'] }, imageConfig ? { imageConfig } : {})
+        });
+    }
+    if (out) return out;
+    console.error('[Gemini Image] No image data returned. Raw response:', data);
+    const blockReason = data?.promptFeedback?.blockReason
+        || data?.candidates?.[0]?.finishReason
+        || data?.candidates?.[0]?.promptFeedback?.blockReason
+        || '';
+    const textFallback = (data?.candidates?.[0]?.content?.parts || [])
+        .map(part => part && part.text)
+        .filter(Boolean)
+        .join('\n')
+        .slice(0, 240);
+    if (blockReason || textFallback) {
+        throw new Error('No image data returned' + (blockReason ? ' (' + blockReason + ')' : '') + (textFallback ? ': ' + textFallback : ''));
+    }
+    throw new Error("No image data returned.");
+}
+
+async function retrySceneImage(sceneIdx) {
+    if (sceneGenerationActive || storyboardGenerating) return;
+    const container = document.getElementById("sceneImgContainer_" + sceneIdx);
+    const scene = state.directorData.scenes[sceneIdx];
+    const currentImage = document.getElementById('sceneImg_' + sceneIdx);
+    const episode = await ensureStoryboardHistoryRecord(state.directorData);
+    setSceneGenerationLock(true, sceneIdx);
+    showSceneImageOverlay(sceneIdx, 'Retrying generation...');
+    try {
+        const directedPrompt = buildDirectedRegeneratePrompt(sceneIdx, scene.masterImagePrompt);
+        scene.masterImagePrompt = directedPrompt;
+        const promptArea = document.getElementById('masterImagePrompt_' + sceneIdx);
+        if (promptArea) promptArea.value = directedPrompt;
+        const imgDataUrl = await generateStoryboardImageForPrompt(directedPrompt, state.episodePlate, collectAdjacentSceneContinuityRefs(sceneIdx), {
+            sceneIdx,
+            prevSceneAnchor: sceneIdx > 0 ? episode.images[sceneIdx - 1] : null
+        });
+        let img = document.getElementById('sceneImg_' + sceneIdx);
+        if (!img && container) {
+            img = document.createElement('img');
+            img.id = 'sceneImg_' + sceneIdx;
+            img.className = 'w-full h-auto object-contain rounded-2xl';
+            container.appendChild(img);
+        }
+        if (img) {
+            img.src = imgDataUrl;
+            img.classList.remove('hidden', 'opacity-0');
+        }
+        document.getElementById('sceneImgEmpty_' + sceneIdx)?.classList.add('hidden');
+        document.getElementById('sceneImgError_' + sceneIdx)?.classList.add('hidden');
+        scene.regeneratedImage = imgDataUrl;
+        scene.editedImage = imgDataUrl;
+        episode.images[sceneIdx] = imgDataUrl;
+        if (sceneIdx === 0) state.episodePlate = imgDataUrl;
+        syncEpisodeSeriesScene(sceneIdx, imgDataUrl);
+        document.getElementById('downloadImgBtn_' + sceneIdx)?.classList.remove('hidden');
+        document.getElementById('btnEditScene_' + sceneIdx)?.removeAttribute('disabled');
+        document.getElementById('btnRegenerateScene_' + sceneIdx)?.removeAttribute('disabled');
+        await persistCurrentStoryboardHistory();
+    } catch (err) {
+        alert('Retry gagal: ' + (err?.message || 'Unknown error'));
+    } finally {
+        hideSceneImageOverlay(sceneIdx);
+        setSceneGenerationLock(false);
+    }
+}
+
+function buildDirectedRegeneratePrompt(sceneIdx, currentPrompt) {
+    const scene = state.directorData?.scenes?.[sceneIdx] || {};
+    const config = {
+        story: state.story,
+        storyboardMode: state.storyboardMode,
+        language: state.language,
+        visualStyle: state.visualStyle,
+        customStyle: state.customStyle,
+        animationStyle: state.animationStyle,
+        animationCustomStyle: state.animationCustomStyle,
+        characterReference: state.characterReference,
+        productReference: state.productReference,
+        productLock: Object.assign({}, state.productLock || {}),
+        locationReference: state.locationReference,
+        shotsPerScene: state.shotsPerScene,
+        aspectRatio: state.aspectRatio
+    };
+    normalizeContinuityBible(state.directorData, config);
+    enforceVoiceContinuity(state.directorData);
+    ensureCommercialHookPlan(state.directorData, config);
+    ensureSceneVisualPlans(state.directorData, config);
+    enforceLongStoryboardRules(state.directorData, config);
+    const identity = state.directorData?.masterVisualIdentity || {};
+    const visualStyleSetting = state.visualStyle === 'Custom Style' ? state.customStyle : state.visualStyle;
+    const resolvedVisualStyle = visualStyleSetting === 'Auto' ? 'Realistic Photography' : visualStyleSetting;
+    const styleKey = String(resolvedVisualStyle || '').toLowerCase();
+    const illustrativeStyles = ['2d animation', 'anime', 'watercolor illustration', 'paper cutout', 'claymation', 'wool yarn craft', 'stop motion'];
+    const allowsIllustration = illustrativeStyles.some(style => styleKey.indexOf(style) !== -1);
+    const variationId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    const gridLock = storyboardGridLock(
+        state.shotsPerScene,
+        state.aspectRatio,
+        state.visualStyle === 'Auto Caption Overlay' && state.visualStyleExplicitOverlay === true ? 'Overlay text only if Auto Caption Overlay is on AND the user explicitly opted in.' : 'No extra captions or titles besides tiny corner numbers.'
+    );
+    const locks = [
+        buildRegenerateStrictLock(state.directorData, sceneIdx, config),
+        buildStrictVisualConsistencyGate(state.directorData, sceneIdx, config),
+        buildLocalDemographicLock(config),
+        buildNoTextArtifactLock(config),
+        buildCtaVisualCleanLock(scene, config),
+        isDioramaAnimationStyle(config) ? buildAnimationMediumContract(config, resolveAnimationStyleName(config)) : '',
+        buildFinalSceneAntiRepeatLock(state.directorData, sceneIdx, config),
+        buildLongStoryboardDisciplineLock(state.directorData, sceneIdx, config),
+        buildExtremeAdHookLock(state.directorData, sceneIdx, config),
+        buildGenreSalesLock(state.directorData, sceneIdx, config),
+        buildSceneIsolationLock(state.directorData, sceneIdx),
+        buildContinuityBibleLock(identity),
+        buildCastLock(identity),
+        buildVoiceLock(identity, state.language),
+        buildDialogueDurationLock(config, scene),
+        buildTimelineAgeLock(scene, config),
+        buildProductLock(identity, !!(state.productReference && state.productReference.length), config),
+        buildSettingLock(identity, scene),
+        'VISUAL STYLE LOCK: Use exactly ' + resolvedVisualStyle + '. Do not switch medium or rendering language.',
+        allowsIllustration
+            ? 'STYLE DRIFT FORBIDDEN: Keep the selected style exactly as ' + resolvedVisualStyle + '. Do not drift into a different illustration, animation, comic, anime, or painterly language.'
+            : 'STYLE DRIFT FORBIDDEN: Photorealistic/cinematic rendering only in exactly ' + resolvedVisualStyle + '. Do NOT make it cartoon, comic, manga, anime, cel-shaded, 2D animation, vector art, painterly, watercolor, paper cutout, or illustration.',
+        'VISIBLE CHANGE REQUIRED: This regenerate must be visibly different on the first click. Create new camera angles, blocking, character poses, expressions, lighting nuance, lens feel, and micro-composition while preserving the same story beat, cast identities, age stage, wardrobe anchors, location, product scale, aspect ratio, and storyboard grid.',
+        'REGENERATION VARIATION ID: ' + variationId + '. Use this as a creative seed. Do not reproduce the previous composition exactly.',
+        'DIRECTED REGENERATE MODE: Create a fresh alternative version of this same storyboard scene. You may change composition, camera angle, pose, expression, blocking, lighting nuance, and cinematic detail, but ONLY inside the existing story beat.',
+        'CONTINUITY GUARDRAILS: keep the named cast count, every CHARACTER_ID forensic identity, role assignment, face shape, hair length/style/texture, skin tone, body/posture, age stage for this timeline, wardrobe/color anchors, locationId, timeOfDay, wardrobeBeat, product scale, aspect ratio, and exact storyboard grid. Do not add new named characters. Do not remove, merge, age-shift, face-swap, hair-swap, or wardrobe-swap characters.',
+        'ANOMALY REPAIR DEFAULT: if a previous image had face drift, wrong hair type, wrong age, adult transformation, missing cast, extra cast, mixed-in earlier scene, bad anatomy, warped hands, wrong wardrobe color, wrong location, foreign props, or broken grid, correct those issues in the new generation while keeping a fresh composition.'
+    ].filter(Boolean).join('\n\n');
+    const headings = ['REGENERATE STRICT LOCK', 'STRICT VISUAL CONSISTENCY GATE', 'CHARACTER FORENSIC RENDER LOCK', 'NO TEXT ARTIFACT LOCK', 'TEXT ARTIFACT CONTROL LOCK', 'FINAL SCENE ANTI-REPEAT LOCK', 'LONG STORYBOARD DISCIPLINE LOCK', 'EXTREME COMMERCIAL HOOK LOCK', 'EXTREME AD HOOK LOCK', 'ADVERTISEMENT SALES STRUCTURE LOCK', 'HYBRID STORY-FIRST SALES LOCK', 'SCENE ISOLATION LOCK', 'CONTINUITY BIBLE LOCK', 'CAST IDENTITY LOCK', 'VOICE CAST LOCK', 'DIALOGUE DURATION LOCK', 'TIMELINE AGE LOCK', 'PRODUCT IDENTITY + SCALE LOCK', 'PRODUCT SCALE LOCK', 'SCENE SETTING LOCK', 'CAMERA VARIETY LOCK', 'VISUAL STYLE LOCK', 'STYLE DRIFT FORBIDDEN', 'VISIBLE CHANGE REQUIRED', 'REGENERATION VARIATION ID', 'AUDIO CONTINUITY LOCK', 'ASPECT RATIO LOCK', 'STORYBOARD GRID LOCK', 'CLEAN VIDEO OPENING', 'DIRECTED REGENERATE MODE'];
+    const stripRe = new RegExp('\\n*(?:' + headings.map(h => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(?:—|:)?').join('|') + ')[\\s\\S]*$', 'g');
+    const cleanCurrentPrompt = stripLeadingStoryboardGridLocks(currentPrompt || scene.masterImagePrompt || '').replace(stripRe, '').trim();
+    return [
+        gridLock,
+        cleanCurrentPrompt,
+        locks
+    ].filter(Boolean).join('\n\n');
+}
+
+let editingSceneIdx = 0;
+let editingShotNumbers = [];
+let sceneEditReferenceImages = [];
+
+function renderSceneEditReferencePreview() {
+    const preview = document.getElementById('sceneEditReferencePreview');
+    if (!preview) return;
+    if (!sceneEditReferenceImages.length) {
+        preview.innerHTML = '<p class="text-[10px] text-gray-500">Belum ada foto referensi. Upload gambar untuk memandu edit detail wajah, produk, atau setting.</p>';
+        return;
+    }
+    preview.innerHTML = sceneEditReferenceImages.map((item, index) => `
+        <div class="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 bg-black/40 group">
+            <img src="${item.dataUrl}" class="w-full h-full object-cover" alt="reference-${index + 1}">
+            <button type="button" onclick="removeSceneEditReference(${index})" class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
+    `).join('');
+}
+
+function removeSceneEditReference(index) {
+    if (index < 0 || index >= sceneEditReferenceImages.length) return;
+    sceneEditReferenceImages.splice(index, 1);
+    renderSceneEditReferencePreview();
+}
+
+async function handleSceneEditReferenceFiles(input) {
+    const files = Array.from(input.files || []).slice(0, 4);
+    input.value = '';
+    if (!files.length) return;
+    const room = Math.max(0, 4 - sceneEditReferenceImages.length);
+    if (room <= 0) {
+        alert('Maksimal 4 foto referensi per edit gambar.');
+        return;
+    }
+    const take = files.slice(0, room);
+    if (files.length > room) {
+        alert('Hanya ' + room + ' foto yang ditambah. Maksimal 4 referensi per edit.');
+    }
+    for (const file of take) {
+        if (!file.type || !file.type.startsWith('image/')) continue;
+        const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target.result);
+            reader.readAsDataURL(file);
+        });
+        const compressed = typeof compressRefImage === 'function' ? await compressRefImage(dataUrl) : { dataUrl };
+        sceneEditReferenceImages.push({ name: file.name, dataUrl: compressed.dataUrl || dataUrl });
+    }
+    renderSceneEditReferencePreview();
+}
+
+function openSceneImageEditModal(sceneIdx = 0) {
+    editingSceneIdx = sceneIdx;
+    editingShotNumbers = [];
+    sceneEditReferenceImages = [];
+    const scene = state.directorData?.scenes?.[sceneIdx];
+    const shotCount = Math.max(1, Number(state.shotsPerScene) || 1);
+    const target = document.getElementById('sceneEditTarget');
+    const selector = document.getElementById('editShotSelector');
+    const prompt = document.getElementById('editScenePrompt');
+    const notice = document.getElementById('sceneEditNotice');
+    const modal = document.getElementById('sceneImageEditModal');
+    const referenceInput = document.getElementById('sceneEditReferenceInput');
+    const referencePreview = document.getElementById('sceneEditReferencePreview');
+
+    if (!scene || !selector || !modal) return;
+    if (target) target.textContent = `Editing Scene ${sceneIdx + 1}${scene.title ? ` - ${scene.title}` : ''}. Select one or more shot numbers below.`;
+    selector.innerHTML = Array.from({ length: shotCount }, (_, index) => `
+        <button type="button" data-shot="${index + 1}" onclick="toggleEditShot(${index + 1})" class="w-9 h-9 rounded-lg bg-white/5 hover:bg-pink-500/20 border border-white/10 text-gray-300 font-bold text-xs transition">${index + 1}</button>
+    `).join('');
+    if (prompt) prompt.value = '';
+    if (referenceInput) referenceInput.value = '';
+    if (referencePreview) renderSceneEditReferencePreview();
+    if (notice) {
+        notice.className = 'hidden text-xs p-3 rounded-xl border';
+        notice.textContent = '';
+    }
+    modal.classList.remove('hidden');
+}
+
+function toggleEditShot(shotNumber) {
+    const index = editingShotNumbers.indexOf(shotNumber);
+    if (index === -1) editingShotNumbers.push(shotNumber);
+    else editingShotNumbers.splice(index, 1);
+
+    const button = document.querySelector(`#editShotSelector button[data-shot="${shotNumber}"]`);
+    if (!button) return;
+    button.className = editingShotNumbers.includes(shotNumber)
+        ? 'w-9 h-9 rounded-lg bg-pink-600 text-white border border-pink-400 font-bold text-xs transition shadow-lg shadow-pink-500/30'
+        : 'w-9 h-9 rounded-lg bg-white/5 hover:bg-pink-500/20 border border-white/10 text-gray-300 font-bold text-xs transition';
+}
+
+function closeSceneImageEditModal() {
+    const modal = document.getElementById('sceneImageEditModal');
+    const input = document.getElementById('sceneEditReferenceInput');
+    if (modal) modal.classList.add('hidden');
+    if (input) input.value = '';
+    sceneEditReferenceImages = [];
+    renderSceneEditReferencePreview();
+}
+
+function classifySceneImageEdit(instruction) {
+    const text = String(instruction || '').toLowerCase();
+    const majorPatterns = [
+        /\b(?:cuaca|hujan|cerah|mendung|salju|kabut|petir|siang|malam|pagi|sore|subuh)\b/,
+        /\b(?:lokasi|setting|set|ruangan|kamar|rumah|kantor|pantai|jalan|background|latar)\b/,
+        /\b(?:outfit|pakaian|baju|kemeja|celana|rok|jilbab|kerudung|sepatu|warna rambut|ganti rambut)\b/,
+        /\b(?:produk|botol|kemasan|logo|label|warna produk|ukuran produk|bentuk produk|besar(?:kan)? produk|kecil(?:kan)? produk)\b/,
+        /\b(?:karakter|wajah|identitas|pemeran|orang baru|hapus karakter|ganti karakter|tambah karakter)\b/
+    ];
+    const category = majorPatterns.findIndex(pattern => pattern.test(text));
+    return {
+        scope: category >= 0 ? 'continuity-impacting' : 'local-only',
+        reason: category >= 0 ? 'Perubahan menyentuh fondasi kontinuitas.' : 'Perubahan bersifat lokal pada shot/scene target.',
+        category: category >= 0 ? ['weather-time', 'location-setting', 'wardrobe', 'product-identity-scale', 'cast-identity'][category] : 'minor-detail'
+    };
+}
+
+function applySceneEditToContinuity(sceneIdx, instruction, classification, selectedShots) {
+    const scene = state.directorData?.scenes?.[sceneIdx];
+    if (!scene || !state.directorData) return;
+    const change = {
+        sceneNumber: scene.sceneNumber || sceneIdx + 1,
+        instruction: String(instruction || '').trim(),
+        category: classification.category,
+        scope: classification.scope,
+        shots: selectedShots.slice(),
+        timestamp: new Date().toISOString()
+    };
+    scene.editHistory = Array.isArray(scene.editHistory) ? scene.editHistory : [];
+    scene.editHistory.push(change);
+    if (classification.scope !== 'continuity-impacting') return;
+    const identity = state.directorData.masterVisualIdentity = state.directorData.masterVisualIdentity || {};
+    identity.continuityChangeSet = Array.isArray(identity.continuityChangeSet) ? identity.continuityChangeSet : [];
+    identity.continuityChangeSet.push(change);
+    identity.continuityRevision = Number(identity.continuityRevision || 0) + 1;
+    identity.continuityChangeLock = 'Apply the latest approved continuity changes before generating any future scene. Do not revert changed weather, location, wardrobe, cast, or product identity.';
+    state.directorData.continuityRevision = identity.continuityRevision;
+    state.directorData.continuityChangeSet = identity.continuityChangeSet;
+}
+
+async function invokeGeminiRequest(model, request) {
+    if (!supabaseClient) throw new Error('Supabase belum terhubung.');
+    const { data, error } = await supabaseClient.functions.invoke('gemini-generate', {
+    body: { model, request }
+    });
+    if (!error) return data;
+
+    let message = error.message || 'Gagal memanggil Edge Function.';
+    if (error.context) {
+        try {
+            const response = error.context;
+            const raw = await response.clone().text();
+            const details = JSON.parse(raw);
+            if (details?.error) message = details.error;
+        } catch (_) { /* Keep the SDK message when no JSON error is available. */ }
+    }
+    if (/failed to send a request/i.test(message)) {
+        message = 'Edge Function gemini-generate tidak dapat dipanggil. Pastikan function sudah di-deploy pada project Supabase ini.';
+    }
+    throw new Error(message);
+}
+
+async function invokeGeminiImageRequest(request, options = {}) {
+    const fallbackModels = [
+        'gemini-3.1-flash-image',
+        'gemini-2.5-flash-image',
+        'gemini-3.1-flash-image-preview'
+    ];
+    let lastError = null;
+    for (const model of fallbackModels) {
+        const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
+        try {
+            const response = await fetchWithExponentialBackoff(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(request),
+                signal: options.signal
+            }, 3, 90000);
+            if (!response.ok) throw new Error('Gemini Image API HTTP ' + response.status);
+            return await response.json();
+        } catch (err) {
+            lastError = err;
+            if (err.status === 400 && request.generationConfig?.imageConfig) {
+                try {
+                    const stripped = JSON.parse(JSON.stringify(request));
+                    delete stripped.generationConfig.imageConfig;
+                    const resp2 = await fetchWithExponentialBackoff(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(stripped),
+                        signal: options.signal
+                    }, 1, 90000);
+                    if (resp2.ok) return await resp2.json();
+                } catch (e2) {
+                    lastError = e2;
+                }
+            }
+            if (err.status === 404 || (err.message && err.message.includes('404'))) {
+                console.warn('[Gemini Image] ' + model + ' returned 404, trying next model...');
+                continue;
+            }
+            throw lastError || err;
+        }
+    }
+    throw lastError || new Error('Gemini Image request failed.');
+}
+
+function downloadSceneImage(sceneIdx) {
+    const scene = state.directorData?.scenes?.[sceneIdx];
+    const image = document.getElementById('sceneImg_' + sceneIdx);
+    const source = getSceneImageDataUrl(sceneIdx)
+        || scene?.finalAssetState?.imageDataUrl
+        || (state.episodeSeries || []).find(episode => episode.episode === state.currentEpisode)?.images?.[sceneIdx]
+        || (image && image.src !== window.location.href ? image.src : null);
+    if (!source) return;
+    downloadImage(source, 'TRENDORA-scene-' + String(sceneIdx + 1).padStart(2, '0') + '.png');
+}
+
+function showSceneImageOverlay(sceneIdx, message) {
+    const container = document.getElementById(`sceneImgContainer_${sceneIdx}`);
+    if (!container) return null;
+    let overlay = document.getElementById(`sceneImgLoading_${sceneIdx}`);
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = `sceneImgLoading_${sceneIdx}`;
+        container.appendChild(overlay);
+    }
+    overlay.className = 'absolute inset-0 z-20 flex flex-col items-center justify-center gap-5 bg-black/70 backdrop-blur-[2px]';
+    overlay.innerHTML = `
+        <div class="relative w-16 h-16 flex items-center justify-center">
+            <div class="absolute inset-0 rounded-full border-2 border-purple-500/20"></div>
+            <div class="absolute inset-0 rounded-full border-2 border-transparent border-t-pink-500 animate-spin" style="animation-duration:1s"></div>
+            <div class="absolute inset-2 rounded-full border-2 border-transparent border-b-cyan-500 animate-spin" style="animation-duration:1.5s;animation-direction:reverse"></div>
+            <div class="absolute inset-4 rounded-full border-2 border-transparent border-r-yellow-400 animate-spin" style="animation-duration:0.8s;animation-direction:reverse"></div>
+        </div>
+        <p class="text-[11px] text-white/80 font-medium tracking-wide text-center px-4">${message || 'Memperbaiki anomali...'}</p>
+    `;
+    overlay.classList.remove('hidden');
+    return overlay;
+}
+
+function hideSceneImageOverlay(sceneIdx) {
+    document.getElementById(`sceneImgLoading_${sceneIdx}`)?.classList.add('hidden');
+}
+
+function classifyPlaceImageAudit(audit) {
+    if (!audit || typeof audit.ok !== 'boolean' || !Array.isArray(audit.issues)) return 'unavailable';
+    if (audit.ok === true && audit.issues.length === 0) return 'approved';
+    if (audit.ok === false && audit.issues.length && audit.issues.every(issue => issue && typeof issue.problem === 'string' && issue.problem.trim() && typeof issue.fix === 'string' && issue.fix.trim())) return 'rejected';
+    return 'unavailable';
+}
+
+async function approvePlaceStoryboardImage(initialImage, scene, sceneIdx, config, originalRequest) {
+    // Candidates remain private until an explicit, valid audit approves them.
+    let candidate = initialImage;
+    for (let editAttempt = 0; editAttempt <= 2; editAttempt++) {
+        let audit = null;
+        let verdict = 'unavailable';
+        for (let auditAttempt = 0; auditAttempt < 2; auditAttempt++) {
+            throwIfStoryboardCancelled();
+            audit = await auditSceneImageForDrift(scene, sceneIdx, config, candidate);
+            throwIfStoryboardCancelled();
+            verdict = classifyPlaceImageAudit(audit);
+            console.warn('[Place image audit]', { scene: sceneIdx + 1, editAttempt, auditAttempt, verdict, issues: audit && audit.issues || [] });
+            if (verdict !== 'unavailable') break;
+        }
+        if (verdict === 'approved') return candidate;
+        if (verdict === 'unavailable') {
+            const error = new Error('Place image audit unavailable after two checks of the same candidate.');
+            error.code = 'STORYBOARD_AUDIT_UNAVAILABLE';
+            throw error;
+        }
+        if (editAttempt === 2) {
+            const error = new Error('Place image still has confirmed reference differences after two edits.');
+            error.code = 'STORYBOARD_VISUAL_DRIFT'; error.auditIssues = audit.issues;
+            throw error;
+        }
+        const match = candidate.match(/^data:(image\/[^;]+);base64,([\s\S]+)$/);
+        if (!match) throw new Error('Invalid place image edit candidate.');
+        const request = structuredClone(originalRequest);
+        const parts = request.contents[request.contents.length - 1].parts;
+        parts.push({ text: 'LOCAL IMAGE CORRECTION: The following image is the rejected EDIT TARGET, never a replacement identity reference. Edit this exact candidate to fix ONLY the verified issues listed below. Original character and place photos remain authoritative. Preserve every correct face, body, outfit, location feature, camera composition, panel count and shot action. Do not invent new features or restage the entire scene.\n' + JSON.stringify(audit.issues) });
+        parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+        throwIfStoryboardCancelled();
+        const response = await invokeGeminiImageRequest(request, { signal: storyboardAbortCtrl ? storyboardAbortCtrl.signal : undefined });
+        throwIfStoryboardCancelled();
+        const edited = pickGeminiImageDataUrl(response);
+        if (!edited) {
+            const error = new Error('Place image edit returned no image.'); error.code = 'STORYBOARD_EDIT_EMPTY'; throw error;
+        }
+        candidate = edited;
+    }
+}
+
+async function auditSceneImageForDrift(scene, sceneIdx, config, existingImageDataUrl) {
+    if (!existingImageDataUrl) return null;
+    const identity = (state.directorData && state.directorData.masterVisualIdentity) || {};
+    const chars = Array.isArray(identity.characters) ? identity.characters : [];
+    const product = identity.product;
+    const parts = [{ text: 'You are a senior storyboard continuity editor. Audit ONE generated storyboard image against the locked cast and product reference. Return JSON only, no markdown:\n{\n  "issues": [\n    { "type": "character" | "product" | "drift", "subject": "CHARACTER_1" | "CHARACTER_2" | "product" | "scene", "problem": "concrete short description (1 sentence)", "fix": "concrete single-sentence instruction to add to the prompt so the next render fixes it" }\n  ],\n  "ok": true | false\n}' }];
+    if (isPlacePromotion(config)) {
+        parts.push({ text: 'CURRENT SCENE CONTRACT: ' + JSON.stringify({
+            sceneNumber: scene.sceneNumber || sceneIdx + 1,
+            locationId: scene.locationId, timeOfDay: scene.timeOfDay,
+            wardrobeBeat: scene.wardrobeBeat, sceneBeat: scene.sceneBeat,
+            visualPlan: scene.sceneVisualPlan, shots: scene.shots,
+            participants: scene.dialoguePlan && scene.dialoguePlan.participants,
+            continuityFromPrevious: scene.continuityFromPrevious,
+            continuityToNext: scene.continuityToNext,
+            settingLock: buildSettingLock(identity, scene)
+        }) + '\nAudit the current scene only. Other location photos may show different angles/rooms of the same site; do not require all rooms or landmarks in every panel. An occluded or out-of-frame feature is not proof it is missing. Flag concrete visible contradictions, not unreadable tiny text or camera/style differences. Preserve identity and all visible reference features. Return ok:false only with concrete problem and actionable fix for each issue.' });
+        [['CHARACTER IDENTITY REFERENCE', config.characterReference], ['LOCKED PLACE REFERENCE', config.locationReference]].forEach(([label, refs]) => (refs || []).forEach((ref, index) => {
+            const image = ref && String(ref.dataUrl || '').match(/^data:(.+);base64,(.+)$/);
+            if (image) parts.push({ text: label + ' ' + (index + 1) }, { inlineData: { mimeType: image[1], data: image[2] } });
+        }));
+        parts.push({ text: buildPlacePromotionContract(config) + '\nAudit against ALL original photos: character identity, wardrobe, site architecture, terrain, layout and signage. Product-category photos depicting a site are place references, regardless of subsequent generic labels. Flag changed or invented site features. Camera angle alone is not drift. LOCATION LOCKS: ' + JSON.stringify(identity.locations || []) });
+    }
+    if (config && config.productReference && config.productReference.length) {
+        config.productReference.forEach((ref, idx) => {
+            if (!ref || !ref.dataUrl) return;
+            const match = ref.dataUrl.match(/^data:(.+);base64,(.+)$/);
+            if (!match) return;
+            parts.push({ text: 'PRODUCT REFERENCE ' + (idx + 1) + ' — the locked hero product design.' });
+            parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+        });
+    }
+    const match = existingImageDataUrl.match(/^data:(.+);base64,(.+)$/);
+    if (match) {
+        parts.push({ text: 'GENERATED IMAGE — audit this against the references and locks below.' });
+        parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+    }
+    const lockSummary = [];
+    chars.forEach((c) => {
+        const id = c.characterId || 'CHARACTER';
+        const bits = [c.identity, c.faceLock, c.hairLock, c.skinLock, c.bodyLock, c.wardrobeDefault].filter(Boolean).join('; ');
+        if (bits) lockSummary.push(id + ': ' + bits);
+    });
+    if (product) {
+        const bits = [product.look, product.shapeLock, product.colorMaterialLock, product.labelLogoLock, product.detailLock, product.realWorldSize].filter(Boolean).join('; ');
+        if (bits) lockSummary.push('PRODUCT: ' + bits);
+    }
+    if (lockSummary.length) {
+        parts.push({ text: 'LOCKS — what the generated image MUST match:\n' + lockSummary.join('\n') });
+    }
+    parts.push({ text: 'Find concrete drift only: wrong face / wrong hair / wrong skin tone / wrong wardrobe color / wrong product silhouette / wrong product color or material / wrong product size / unregistered extra person. Return empty issues array if everything matches. Do not nitpick style or composition; only flag clear continuity or identity drift.' });
+    try {
+        const result = await invokeStoryboardTextRequest({
+            contents: [{ role: 'user', parts }],
+            generationConfig: { responseMimeType: 'application/json' }
+        });
+        const raw = (result?.candidates?.[0]?.content?.parts || []).filter(part => !part.thought).map(part => part.text || '').join('') || result?.text || '';
+        return parseGeminiJsonResponse(raw);
+    } catch (err) {
+        if (err.permanent || err.code === 'CANCELLED' || storyboardCancelled) throw err;
+        console.warn('[Drift audit] failed:', err && err.message);
+        return null;
+    }
+}
+
+async function regenerateSceneImage(sceneIdx) {
+    if (sceneGenerationActive || storyboardGenerating) return;
+    const scene = state.directorData?.scenes?.[sceneIdx];
+    const container = document.getElementById(`sceneImgContainer_${sceneIdx}`);
+    let image = document.getElementById(`sceneImg_${sceneIdx}`) || container?.querySelector('img');
+    const button = document.getElementById('btnRegenerateScene_' + sceneIdx);
+    if (!scene) {
+        alert('Data scene tidak ditemukan.');
+        return;
+    }
+    const promptText = (document.getElementById('masterImagePrompt_' + sceneIdx) || {}).value || scene.masterImagePrompt;
+    if (!promptText) {
+        alert('Prompt adegan tidak tersedia.');
+        return;
+    }
+    const adjacentRefs = collectAdjacentSceneContinuityRefs(sceneIdx);
+    const episode = await ensureStoryboardHistoryRecord(state.directorData);
+    const existingImage = getSceneImageDataUrl(sceneIdx) || (episode && episode.images && episode.images[sceneIdx]);
+    let driftIssues = [];
+
+    setSceneGenerationLock(true, sceneIdx);
+    if (button) button.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-1"></i>Audit + Generate ulang...';
+
+    try {
+        const beforeDialogue = String(scene.dialogueOrNarration || '');
+        await repairDialogueViolations(state.directorData, state);
+        if (String(scene.dialogueOrNarration || '') !== beforeDialogue) {
+            applyStoryboardSceneLocks(state.directorData, sceneIdx, state);
+            const videoArea = document.getElementById('masterVideoPrompt_' + sceneIdx);
+            if (videoArea) videoArea.value = state.directorData.scenes[sceneIdx].masterVideoPrompt || '';
+            await persistCurrentStoryboardHistory();
+        }
+    } catch (dialogueErr) {
+        console.warn('[Regenerate] dialogue audit failed, proceeding with current prompt:', dialogueErr && dialogueErr.message);
+    }
+
+    if (existingImage) {
+        showSceneImageOverlay(sceneIdx, 'TRENDORA AI sedang mengaudit: cek karakter, produk, dan kunci kontinuitas...');
+        try {
+            const audit = await auditSceneImageForDrift(scene, sceneIdx, state, existingImage);
+            if (audit && Array.isArray(audit.issues) && audit.issues.length) {
+                driftIssues = audit.issues;
+                console.info('[Regenerate] Drift detected in scene ' + sceneIdx + ':', driftIssues);
+            } else {
+                console.info('[Regenerate] No drift for scene ' + sceneIdx + '.');
+            }
+        } catch (auditErr) {
+            console.warn('[Regenerate] audit failed, proceeding without drift fix:', auditErr.message);
+        }
+    }
+
+    const directedPrompt = buildDirectedRegeneratePrompt(sceneIdx, promptText);
+    let finalPrompt = directedPrompt;
+    if (driftIssues.length) {
+        const fixList = driftIssues.map(i => '- ' + (i.subject || 'issue') + ': ' + (i.problem || '') + '. FIX: ' + (i.fix || '')).join('\n');
+        finalPrompt = directedPrompt + '\n\nDIRECTOR AUDIT FINDINGS — fix these drift issues in the next render:\n' + fixList;
+    }
+    scene.masterImagePrompt = finalPrompt;
+    const promptArea = document.getElementById('masterImagePrompt_' + sceneIdx);
+    if (promptArea) promptArea.value = finalPrompt;
+
+    showSceneImageOverlay(
+        sceneIdx,
+        driftIssues.length
+            ? 'Terdapat ' + driftIssues.length + ' drift pada gambar — regenerate dengan perbaikan...'
+            : (adjacentRefs.length
+                ? 'Generate ulang variasi baru dengan konteks teks adegan sebelum/sesudah...'
+                : 'Generate ulang variasi baru: cast, umur, lokasi, style, dan grid tetap terkunci...')
+    );
+
+    try {
+        const imgDataUrl = await generateStoryboardImageForPrompt(finalPrompt, state.episodePlate, adjacentRefs, {
+            sceneIdx,
+        currentSceneImage: existingImage,
+        prevSceneAnchor: sceneIdx > 0 ? getSceneImageDataUrl(sceneIdx - 1) || episode.images[sceneIdx - 1] : null
+        });
+        let finalImageDataUrl = imgDataUrl;
+        let fixedDriftIssues = [];
+        const generatedAudit = await auditSceneImageForDrift(scene, sceneIdx, state, imgDataUrl);
+        if (generatedAudit && Array.isArray(generatedAudit.issues) && generatedAudit.issues.length) {
+        fixedDriftIssues = generatedAudit.issues;
+        const fixList = fixedDriftIssues.map(i => '- ' + (i.subject || 'issue') + ': ' + (i.problem || '') + '. FIX: ' + (i.fix || '')).join('\n');
+        const fixedPrompt = finalPrompt + '\n\nPOST-RENDER PRODUCT/CONTINUITY AUDIT — the previous render drifted. Create a fixed replacement image now. Restore these exact defects while preserving the requested variation:\n' + fixList;
+        scene.masterImagePrompt = fixedPrompt;
+        if (promptArea) promptArea.value = fixedPrompt;
+        showSceneImageOverlay(sceneIdx, 'Audit menemukan drift pada hasil baru — membuat gambar fixed...');
+        finalImageDataUrl = await generateStoryboardImageForPrompt(fixedPrompt, imgDataUrl, adjacentRefs, {
+            sceneIdx,
+            currentSceneImage: imgDataUrl,
+            prevSceneAnchor: sceneIdx > 0 ? getSceneImageDataUrl(sceneIdx - 1) || episode.images[sceneIdx - 1] : null
+        });
+        }
+        if (!image && container) {
+            image = document.createElement('img');
+            image.id = 'sceneImg_' + sceneIdx;
+            image.className = 'w-full h-auto object-contain rounded-2xl';
+            container.appendChild(image);
+        }
+        if (!image) throw new Error('Elemen gambar tidak ditemukan.');
+        image.classList.remove('hidden', 'opacity-0');
+        image.src = finalImageDataUrl;
+        document.getElementById('sceneImgEmpty_' + sceneIdx)?.classList.add('hidden');
+        document.getElementById('sceneImgError_' + sceneIdx)?.classList.add('hidden');
+        scene.regeneratedImage = finalImageDataUrl;
+        scene.editedImage = finalImageDataUrl;
+        episode.images[sceneIdx] = finalImageDataUrl;
+        if (sceneIdx === 0) state.episodePlate = finalImageDataUrl;
+        applyStoryboardSceneLocks(state.directorData, sceneIdx, state);
+        const refreshedImageArea = document.getElementById('masterImagePrompt_' + sceneIdx);
+        const refreshedVideoArea = document.getElementById('masterVideoPrompt_' + sceneIdx);
+        if (refreshedImageArea) refreshedImageArea.value = scene.masterImagePrompt || refreshedImageArea.value;
+        if (refreshedVideoArea) refreshedVideoArea.value = scene.masterVideoPrompt || refreshedVideoArea.value;
+        scene.finalAssetState = {
+            imageDataUrl: finalImageDataUrl,
+            imagePrompt: scene.masterImagePrompt || finalPrompt,
+            videoPrompt: scene.masterVideoPrompt || '',
+            assetRefs: scene.promptCompiler && scene.promptCompiler.assetRefs || {},
+            updatedAt: new Date().toISOString()
+        };
+        syncEpisodeSeriesScene(sceneIdx, finalImageDataUrl);
+        document.getElementById('downloadImgBtn_' + sceneIdx)?.classList.remove('hidden');
+        await persistCurrentStoryboardHistory();
+        if (driftIssues.length || fixedDriftIssues.length) {
+            showCanvasNotice('Audit selesai. Gambar baru sudah diperbaiki dan prompt video sudah diperbarui.', 'success');
+        } else if (existingImage) {
+            showCanvasNotice('Audit selesai: tidak ada drift karakter/produk terdeteksi. Prompt video sudah diperbarui.', 'success');
+        }
+    } catch (err) {
+        console.error('[Storyboard Regenerate] Failed:', err);
+        alert('Generate ulang gagal: ' + (err?.message || 'Unknown error'));
+    } finally {
+        hideSceneImageOverlay(sceneIdx);
+        setSceneGenerationLock(false);
+        if (button) button.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1"></i>Generate Ulang';
+    }
+}
+
+function syncEpisodeSeriesScene(sceneIdx, imageDataUrl) {
+    const ep = (state.episodeSeries || []).find(e => e.episode === state.currentEpisode);
+    if (!ep) return;
+    ep.breakdown = state.directorData;
+    if (!ep.images) ep.images = [];
+    if (imageDataUrl) ep.images[sceneIdx] = imageDataUrl;
+}
+
+async function syncPromptsFromSceneEdit(sceneIdx, instruction, editScope) {
+    const scene = state.directorData?.scenes?.[sceneIdx];
+    if (!scene) return;
+    const imgArea = document.getElementById('masterImagePrompt_' + sceneIdx);
+    const videoArea = document.getElementById('masterVideoPrompt_' + sceneIdx);
+    const currentImage = (imgArea && imgArea.value) || scene.masterImagePrompt || '';
+    const currentVideo = (videoArea && videoArea.value) || scene.masterVideoPrompt || '';
+    const syncConfig = {
+        story: state.story,
+        storyboardMode: state.storyboardMode,
+        language: state.language,
+        visualStyle: state.visualStyle,
+        customStyle: state.customStyle,
+        animationStyle: state.animationStyle,
+        animationCustomStyle: state.animationCustomStyle,
+        characterReference: state.characterReference,
+        productReference: state.productReference,
+        locationReference: state.locationReference,
+        shotsPerScene: state.shotsPerScene,
+        aspectRatio: state.aspectRatio
+    };
+    normalizeContinuityBible(state.directorData, syncConfig);
+    const syncIdentity = state.directorData?.masterVisualIdentity || {};
+    const previousDialogue = scene.dialogueOrNarration || '';
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent';
+    const payload = {
+        contents: [{ parts: [{ text: `User edited storyboard scene ${sceneIdx + 1}. Instruction: "${instruction}". Scope: ${editScope}.
+Detect if this changes story, action, camera, lighting, wardrobe, location, or dialogue. Update BOTH prompts to match the NEW scene.
+Keep SCENE ISOLATION LOCK, CONTINUITY BIBLE LOCK, CAST IDENTITY LOCK, PRODUCT IDENTITY + SCALE LOCK, SCENE SETTING LOCK, CAMERA VARIETY LOCK, VISUAL STYLE LOCK, AUDIO CONTINUITY LOCK, ASPECT RATIO LOCK verbatim unless the user explicitly changed the product.
+Every CHARACTER_1, CHARACTER_2, CHARACTER_3, etc. must preserve face, hair type, skin, body/posture, age stage, role, and locked outfit from this Bible:
+${buildStrictVisualConsistencyGate(state.directorData, sceneIdx, syncConfig)}
+${buildDialoguePlanLock(scene)}
+${buildNoTextArtifactLock(syncConfig)}
+${buildContinuityBibleLock(syncIdentity)}
+${buildProductLock(syncIdentity, !!(state.productReference && state.productReference.length))}
+${buildSponsoredStoryPropLock(syncConfig, syncIdentity)}
+${state.directorData?.masterVisualIdentity?.continuityChangeLock || ''}
+CONTINUITY CHANGE SET: ${JSON.stringify(state.directorData?.masterVisualIdentity?.continuityChangeSet || [])}
+${buildSceneIsolationLock(state.directorData, sceneIdx)}
+        Spoken lines in ${state.language}. Aspect ratio ${state.aspectRatio}. Put [AUDIO / DIALOGUE] near the beginning, immediately before the dialogue, voice, and performance locks.
+The updatedVideoPrompt must be a clean production prompt for a video model: describe visible motion, shot timing, camera, setting, characters, sound, and dialogue only. Do not include director commentary, planning language, blueprint labels, quality gates, reasoning, repeated locks, or instructions about how to interpret the prompt. If the edit is cosmetic only, reflect it in the video prompt without rewriting the whole plot.
+Current image prompt:\n${currentImage}\n\nCurrent video prompt:\n${currentVideo}\n\nReturn JSON: {"updatedImagePrompt":"...","updatedVideoPrompt":"...","dialogueOrNarration":"..."}` }] }],
+        generationConfig: { responseMimeType: "application/json" }
+    };
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    let result = {};
+    try { result = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '{}'); } catch (e) { result = {}; }
+    if (result.updatedImagePrompt) {
+        scene.masterImagePrompt = result.updatedImagePrompt;
+        if (imgArea) imgArea.value = result.updatedImagePrompt;
+    }
+    if (result.updatedVideoPrompt) {
+        scene.masterVideoPrompt = enforceCleanVideoOpening(moveAudioDialogueToBottom(result.updatedVideoPrompt, result.dialogueOrNarration || scene.dialogueOrNarration));
+        if (videoArea) videoArea.value = scene.masterVideoPrompt;
+    }
+    if (result.dialogueOrNarration) scene.dialogueOrNarration = result.dialogueOrNarration;
+    applyStoryboardLocks(state.directorData, syncConfig);
+    try {
+        validateInteractiveDialogueContract(state.directorData, syncConfig);
+    } catch (error) {
+        scene.dialogueOrNarration = previousDialogue;
+        applyStoryboardLocks(state.directorData, syncConfig);
+        console.warn('[Prompt sync] Rejected invalid interactive dialogue:', error.message);
+    }
+    if (imgArea) imgArea.value = state.directorData?.scenes?.[sceneIdx]?.masterImagePrompt || imgArea.value;
+    if (videoArea) videoArea.value = state.directorData?.scenes?.[sceneIdx]?.masterVideoPrompt || videoArea.value;
+}
+
+function applyVisualEditToVideoPrompt(scene, instruction, selectedShots) {
+    if (!scene || !instruction) return '';
+    const shots = Array.isArray(selectedShots) ? selectedShots.filter(Number.isFinite) : [];
+    const shotLabel = shots.length ? 'Shot ' + shots.join(', ') : 'seluruh shot/panel scene';
+    const markerStart = 'USER VISUAL EDIT LOCK — BEGIN';
+    const markerEnd = 'USER VISUAL EDIT LOCK — END';
+    const existing = String(scene.masterVideoPrompt || '')
+        .replace(new RegExp('\\n*' + markerStart + '[\\s\\S]*?' + markerEnd, 'gi'), '')
+        .trim();
+    const lock = [
+        markerStart,
+        'The generated storyboard image was edited by the user.',
+        'Apply this visual change to ' + shotLabel + ' in the video:',
+        String(instruction).trim(),
+        'The edited image is authoritative for the requested change. Preserve all non-target shots, registered cast identity, product identity, setting continuity, timing, and aspect ratio.',
+        markerEnd
+    ].join('\n');
+    scene.masterVideoPrompt = enforceCleanVideoOpening([existing, lock].filter(Boolean).join('\n\n'));
+    return scene.masterVideoPrompt;
+}
+
+async function generateEditedSceneImage() {
+    const notice = document.getElementById('sceneEditNotice');
+    const button = document.getElementById('btnSceneImageEdit');
+    const instruction = document.getElementById('editScenePrompt')?.value.trim() || '';
+    const image = document.getElementById(`sceneImg_${editingSceneIdx}`);
+
+    const showNotice = (message, type = 'error') => {
+        if (!notice) return;
+        notice.textContent = message;
+        notice.className = type === 'success'
+            ? 'text-xs p-3 rounded-xl border text-emerald-300 bg-emerald-500/10 border-emerald-500/20 block'
+            : 'text-xs p-3 rounded-xl border text-red-300 bg-red-500/10 border-red-500/20 block';
+    };
+
+    if (!instruction) {
+        showNotice('Tuliskan perubahan yang diinginkan.');
+        return;
+    }
+    if (!image?.src?.startsWith('data:')) {
+        showNotice('Gambar scene belum tersedia.');
+        return;
+    }
+
+    const imageMatch = image.src.match(/^data:(.+);base64,(.+)$/);
+    if (!imageMatch) {
+        showNotice('Format gambar scene tidak valid.');
+        return;
+    }
+
+    const selectedShots = [...editingShotNumbers].sort((a, b) => a - b);
+    const editClassification = classifySceneImageEdit(instruction);
+    const editScope = selectedShots.length
+        ? `Edit only Shot(s) ${selectedShots.join(' and ')}. Preserve every other shot/panel exactly unchanged.`
+        : 'No shot was selected. Apply the requested change to the whole image.';
+    const editConfig = {
+        story: state.story,
+        storyboardMode: state.storyboardMode,
+        language: state.language,
+        visualStyle: state.visualStyle,
+        customStyle: state.customStyle,
+        animationStyle: state.animationStyle,
+        animationCustomStyle: state.animationCustomStyle,
+        characterReference: state.characterReference,
+        productReference: state.productReference,
+        locationReference: state.locationReference,
+        shotsPerScene: state.shotsPerScene,
+        aspectRatio: state.aspectRatio
+    };
+    normalizeContinuityBible(state.directorData, editConfig);
+    const editIdentity = state.directorData?.masterVisualIdentity || {};
+    const editScene = state.directorData?.scenes?.[editingSceneIdx] || {};
+    const promptText = [
+        `You are editing Scene ${editingSceneIdx + 1} of a composite storyboard image.`,
+        editScope,
+        'Apply this user instruction: ' + instruction + '.',
+        sceneEditReferenceImages.length ? 'USER-ATTACHED REFERENCE PHOTOS: these are visual anchors. Use them only as guidance for the requested edit, but do not let them override the locked cast, props, location, or continuity rules unless the user explicitly requests a direct style or identity correction.' : '',
+        buildStrictVisualConsistencyGate(state.directorData, editingSceneIdx, editConfig),
+        buildNoTextArtifactLock(editConfig),
+        buildFinalSceneAntiRepeatLock(state.directorData, editingSceneIdx, editConfig),
+        buildSceneIsolationLock(state.directorData, editingSceneIdx),
+        buildContinuityBibleLock(editIdentity),
+        buildCastLock(editIdentity),
+        buildTimelineAgeLock(editScene, editConfig),
+        buildProductLock(editIdentity, !!(state.productReference && state.productReference.length)),
+        buildSettingLock(editIdentity, editScene),
+        `EDIT SCOPE: ${editClassification.scope}. ${editClassification.reason} ${editClassification.scope === 'continuity-impacting'
+            ? 'This change must be recorded in the continuity blueprint and applied to every future affected scene.'
+            : 'Keep this change local to the selected shot(s) and do not rewrite the global blueprint.'}`,
+        'EDIT GUARDRAILS: preserve every CHARACTER_ID face, hair type, age stage, body/posture, role, and wardrobe unless the user explicitly requested a justified new-day/place wardrobe change. Preserve hero product category, silhouette, color/material, label/logo placement, distinctive details, real-world size, and product-to-body scale unless the user explicitly changes the product. Do not import any location, outfit, prop, or action from another scene. Preserve the storyboard grid and all non-target panels. Return only the edited image.'
+    ].filter(Boolean).join('\n\n');
+    const request = {
+        contents: [{
+            role: 'user',
+            parts: [
+                { text: promptText },
+                { inlineData: { mimeType: imageMatch[1], data: imageMatch[2] } }
+            ]
+        }],
+        generationConfig: Object.assign(
+            { responseModalities: ['IMAGE'] },
+            state.aspectRatio ? { imageConfig: { aspectRatio: state.aspectRatio } } : {}
+        )
+    };
+    sceneEditReferenceImages.forEach((ref, index) => {
+        const refMatch = (ref && ref.dataUrl || '').match(/^data:(.+);base64,(.+)$/);
+        if (!refMatch) return;
+        request.contents[0].parts.push({ text: `REFERENCE PHOTO ${index + 1} — attached by the user for this edit. Use it to guide the requested visual change, but keep the locked continuity and character identity intact unless the user explicitly asks to change it.` });
+        request.contents[0].parts.push({ inlineData: { mimeType: refMatch[1], data: refMatch[2] } });
+    });
+
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-spinner animate-spin mr-1"></i> Memproses...';
+    }
+    closeSceneImageEditModal();
+    if (notice) notice.className = 'hidden text-xs p-3 rounded-xl border';
+    showSceneImageOverlay(
+        editingSceneIdx,
+        selectedShots.length
+            ? `Mengedit shot ${selectedShots.join(', ')} dan mengunci panel lain tetap konsisten...`
+            : 'Mengedit seluruh gambar sambil menjaga cast, lokasi, style, dan grid tetap konsisten...'
+    );
+
+    try {
+        const data = await invokeGeminiImageRequest(request);
+        const editedDataUrl = pickGeminiImageDataUrl(data);
+        if (!editedDataUrl) throw new Error(data?.error || 'Hasil edit gambar kosong.');
+        image.src = editedDataUrl;
+        image.classList.remove('hidden', 'opacity-0');
+        document.getElementById('sceneImgEmpty_' + editingSceneIdx)?.classList.add('hidden');
+        document.getElementById('sceneImgError_' + editingSceneIdx)?.classList.add('hidden');
+        hideSceneImageOverlay(editingSceneIdx);
+        const scene = state.directorData?.scenes?.[editingSceneIdx];
+        if (scene) {
+            scene.editedImage = editedDataUrl;
+            scene.regeneratedImage = editedDataUrl;
+            scene.visualEditInstruction = instruction;
+            scene.visualEditShots = selectedShots.slice();
+            applySceneEditToContinuity(editingSceneIdx, instruction, editClassification, selectedShots);
+        }
+        const downloadButton = document.getElementById(`downloadImgBtn_${editingSceneIdx}`);
+        downloadButton?.classList.remove('hidden');
+        try {
+            await syncPromptsFromSceneEdit(editingSceneIdx, instruction, editScope + ' ' + editClassification.reason);
+        } catch (e) {
+            console.error('[Prompt sync] Failed:', e);
+        }
+        const syncedScene = state.directorData?.scenes?.[editingSceneIdx];
+        if (syncedScene) {
+            const finalVideoPrompt = applyVisualEditToVideoPrompt(syncedScene, instruction, selectedShots);
+            const finalVideoArea = document.getElementById('masterVideoPrompt_' + editingSceneIdx);
+            if (finalVideoArea) finalVideoArea.value = finalVideoPrompt;
+        }
+        syncEpisodeSeriesScene(editingSceneIdx, editedDataUrl);
+        await persistCurrentStoryboardHistory();
+    } catch (err) {
+        console.error('[Storyboard Edit] Failed:', err);
+        showNotice('Gagal edit gambar: ' + (err?.message || 'Unknown error'));
+    } finally {
+        hideSceneImageOverlay(editingSceneIdx);
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Generate';
+        }
+    }
+}
+
+/* ----------------------------------------------------------------- */
+/* AI COPILOT & VOICE GENERATORS                                     */
+/* ----------------------------------------------------------------- */
+
+async function enhanceStoryWithAI(styleType) {
+    const inputEl = document.getElementById('promptInput');
+    if (!inputEl || !inputEl.value.trim()) {
+        alert("Tulis ide cerita dasar terlebih dahulu!");
+        return;
+    }
+    const loader = document.getElementById('aiEnhanceLoader');
+    if (loader) loader.classList.remove('hidden');
+
+    try {
+        const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent';
+
+        const rawStory = inputEl.value.trim();
+        const genre = detectGenre(rawStory);
+        const genreContext = {
+            advertisement: 'Format IKLAN. Hook 1-3 detik wajib extreme visual hook yang fresh dan tidak monoton, body manfaat, CTA akhir natural yang tidak klise.',
+            horror: 'Format HORROR. Atmosfer, dread, withheld reveal. Jangan CTA. Jangan lucu.',
+            dramatic: 'Format DRAMA. Karakter, konflik batin, momen peak. Jangan elemen promo.',
+            comedy: 'Format KOMEDI. Setup visual, timing, payoff. Jangan CTA kecuali jelas iklan lucu.',
+            educational: 'Format EDUKASI. Satu ide per beat, kejelasan, progressive reveal.',
+            action: 'Format ACTION. Momentum, geografi ruang, impact. Jangan CTA kecuali iklan.',
+            documentary: 'Format DOKUMENTER. Observational, authentic. Jangan dramatisasi berlebihan.',
+            hybrid: 'Format CAMPURAN CERITA+IKLAN. Cerita tetap utama. Produk/promo diselipkan natural di tengah cerita. Jangan beri CTA di akhir.',
+            neutral: 'Format GENERAL. Bangun narasi engaging dengan pacing yang baik.'
+        }[genre] || 'Format GENERAL. Bangun narasi engaging dengan pacing yang baik.';
+
+        const systemPrompt = `Anda adalah TRENDORA Senior & Head Scriptwriter papan atas Indonesia. kembangkan ide kasar menjadi skrip video pendek yang上市 (viral-worthy) dan sinematik.
+
+ATURAN:
+- Bahasa output: Bahasa Indonesia yang natural dan engaging
+- ${genreContext}
+- Tulis dalam bentuk paragraf naratif sinematik, bukan bullet points
+- Maksimal 3-4 paragraf pendek yang padat dan vivid
+- Setiap paragraf harus memiliki detail visual, audio, dan emosional
+- Jangan gunakan bahasa generik — setiap kalimat harus terasa visual dan sensoris`;
+
+        const userQuery = `Poles dan kembangkan ide video berikut dengan gaya ${styleType.toUpperCase()}:
+"${rawStory}"
+
+Genre terdeteksi: ${genre.toUpperCase()}`;
+
+        const payload = {
+            contents: [{ parts: [{ text: userQuery }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] }
+        };
+
+        const response = await fetchWithExponentialBackoff(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (generatedText) {
+            inputEl.value = generatedText.trim();
+            state.story = generatedText.trim();
+            alert(`Naskah berhasil dipoles! (Genre: ${genre.toUpperCase()})`);
+        }
+    } catch (err) {
+        alert("Gagal memoles skrip: " + err.message);
+    } finally {
+        if (loader) loader.classList.add('hidden');
+    }
+}
+
+
+function parseSceneDialogueSegments(dialogText) {
+    const out = [];
+    const lines = String(dialogText || '').split('\n').map(line => line.trim()).filter(Boolean);
+    const speakerLineRe = /^(?:\[[^\]]+\]\s*)?(CHARACTER_\d+|VOICEOVER|NARRATOR)\s*:\s*(.+)$/i;
+    for (const line of lines) {
+        const m = line.match(speakerLineRe);
+        if (m) {
+            const speakerId = m[1].toUpperCase();
+            let text = m[2].trim().replace(/^["']|["']$/g, '').replace(/\\"/g, '"');
+            if (text) out.push({ speakerId, text });
+        } else if (out.length) {
+            // Continuation of the previous speaker line.
+            out[out.length - 1].text += ' ' + line.replace(/^["']|["']$/g, '').trim();
+        }
+    }
+    return out;
+}
+
+function resolveSceneVoiceFor(speakerId, scene, identity) {
+    const cast = (scene && scene.voiceCast) || {};
+    const bindings = (identity && typeof identity.voiceBindings === 'object') ? identity.voiceBindings : null;
+    if (speakerId === 'VOICEOVER' || speakerId === 'NARRATOR') {
+        return cast.VOICEOVER || cast.NARRATOR || FEMALE_TTS_VOICE;
+    }
+    if (cast[speakerId]) return cast[speakerId];
+    const chars = (identity && identity.characters) || [];
+    const ch = chars.find(character => String(character.characterId || '').toUpperCase() === speakerId);
+    // V5.0 (Isu #1): walk the explicit fields first, then binding,
+    // then inference. NEVER default to MALE here — leave it empty
+    // so the caller can surface the warning rather than silently
+    // flip a female character to Puck.
+    if (ch) {
+        const explicit = normalizeGeminiVoiceName(ch.voiceName || ch.ttsVoice);
+        if (explicit) return explicit;
+        if (bindings && normalizeGeminiVoiceName(bindings[speakerId])) {
+            return bindings[speakerId];
+        }
+        const inferred = assignDefaultVoiceName(ch, chars.indexOf(ch), bindings);
+        if (inferred) return inferred;
+        try { console.warn('[V5.0 Voice Lock] resolveSceneVoiceFor could not resolve voice for ' + speakerId + ' — returning empty.'); } catch (_) {}
+        return '';
+    }
+    return '';
+}
+
+function combinePcmChunks(pcmChunks, sampleRate, silenceSeconds) {
+    const gapSamples = Math.max(0, Math.floor((silenceSeconds || 0) * sampleRate));
+    const gap = gapSamples > 0 ? new Int16Array(gapSamples) : null;
+    const totalLen = pcmChunks.reduce((sum, chunk) => sum + chunk.length + (gap ? gapSamples : 0), 0);
+    const combined = new Int16Array(Math.max(0, totalLen));
+    let offset = 0;
+    for (let i = 0; i < pcmChunks.length; i++) {
+        const chunk = pcmChunks[i];
+        if (chunk && chunk.length) {
+            combined.set(chunk, offset);
+            offset += chunk.length;
+        }
+        if (gap && i < pcmChunks.length - 1) {
+            offset += gapSamples;
+        }
+    }
+    return combined;
+}
+
+async function generateAIVoiceForScene(sceneIdx) {
+    const scene = state.directorData?.scenes?.[sceneIdx];
+    if (!scene) return;
+    if (isSilentAudioMode(state)) {
+        showCanvasNotice('Mode tanpa dialog tidak memakai AI Voice. Gunakan ambience/foley di video prompt.', 'warning');
+        return;
+    }
+    const btn = document.getElementById(`btnGenVoice_${sceneIdx}`);
+    const status = document.getElementById(`voiceStatus_${sceneIdx}`);
+    const audioContainer = document.getElementById(`voiceAudioContainer_${sceneIdx}`);
+
+    btn.disabled = true;
+    status.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Menyiapkan dialog...';
+    status.classList.remove('hidden');
+
+    try {
+        const segments = parseSceneDialogueSegments(scene.dialogueOrNarration || '');
+        if (!segments.length) {
+            throw new Error('Dialog scene ini masih kosong. Generate ulang dialognya dulu.');
+        }
+        const identity = state.directorData && state.directorData.masterVisualIdentity;
+        const pcmChunks = [];
+        let sampleRate = 24000;
+        for (let i = 0; i < segments.length; i++) {
+            const segment = segments[i];
+            const voiceName = resolveSceneVoiceFor(segment.speakerId, scene, identity);
+            status.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> ' + (i + 1) + '/' + segments.length + ' — ' + segment.speakerId + ' (' + voiceName + ')';
+            const result = await generateVoiceOverAudio({
+                promptText: segment.text,
+                voiceName: voiceName
+            });
+            sampleRate = result.sampleRate || sampleRate;
+            const buf = await result.wavBlob.arrayBuffer();
+            const pcm = new Int16Array(buf, 44);
+            if (pcm.length) pcmChunks.push(pcm);
+        }
+        const combined = combinePcmChunks(pcmChunks, sampleRate, 0.45);
+        if (!combined.length) throw new Error('Semua segment TTS kosong.');
+        const wavBlob = pcmToWav(combined, sampleRate);
+        audioContainer.innerHTML = '<div class="bg-black/60 p-3 rounded-xl border border-purple-500/30 flex items-center space-x-3 mt-3"><audio controls class="w-full h-8"><source src="' + URL.createObjectURL(wavBlob) + '" type="audio/wav"></audio></div>';
+        status.classList.add('hidden');
+    } catch (err) {
+        console.warn('[AI Voice]', err && err.message);
+        status.innerHTML = '<span class="text-red-400">Gagal generate AI Voice: ' + (err && err.message ? err.message : 'Unknown error') + '</span>';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function base64ToPCM16(base64) {
+    const binStr = atob(base64); const bytes = new Uint8Array(binStr.length);
+    for (let i = 0; i < binStr.length; i++) bytes[i] = binStr.charCodeAt(i);
+    return new Int16Array(bytes.buffer);
+}
+function pcmToWav(pcm16, sampleRate) {
+    const buffer = new ArrayBuffer(44 + pcm16.length * 2);
+    const view = new DataView(buffer);
+    const writeString = (v, offset, str) => { for (let i = 0; i < str.length; i++) v.setUint8(offset + i, str.charCodeAt(i)); };
+    writeString(view, 0, 'RIFF'); view.setUint32(4, 36 + pcm16.length * 2, true); writeString(view, 8, 'WAVE');
+    writeString(view, 12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+    writeString(view, 36, 'data'); view.setUint32(40, pcm16.length * 2, true);
+    let offset = 44; for (let i = 0; i < pcm16.length; i++, offset += 2) view.setInt16(offset, pcm16[i], true);
+    return new Blob([view], { type: 'audio/wav' });
+}
+
+function copyText(elementId) {
+    const videoMatch = /^masterVideoPrompt_(\d+)$/.exec(elementId);
+    if (videoMatch) {
+        const field = document.getElementById(elementId);
+        if (field) {
+            field.value = enforceCleanVideoOpening(field.value);
+            const scene = state.directorData?.scenes?.[Number(videoMatch[1])];
+            if (scene) scene.masterVideoPrompt = field.value;
+        }
+    }
+    document.getElementById(elementId)?.select();
+    document.execCommand('copy');
+    alert("Disalin ke clipboard.");
+}
+function backToEditMode() {
+    if (state.directorData) {
+        const promptEl = document.getElementById('promptInput');
+        if (promptEl) state.story = promptEl.value;
+        const captionEl = document.getElementById('socialCaptionOut');
+        const hashtagEl = document.getElementById('socialHashtagOut');
+        if (captionEl) state.directorData.socialCaption = captionEl.value.trim();
+        if (hashtagEl) state.directorData.hashtags = hashtagEl.value.trim().split(/\s+/).filter(Boolean);
+        persistCurrentStoryboardHistory();
+    }
+    document.getElementById('resultView').classList.add('hidden');
+    document.getElementById('creatorFormView').classList.remove('hidden');
+}
+function startNewStoryboard() {
+    state.story = ""; state.directorData = null; document.getElementById('promptInput').value = "";
+    state.currentEpisode = 1; state.episodeBible = null; state.seriesPlan = null; state.episodePlate = null; state.episodeSeries = [];
+    state.storyboardSessions = {};
+    resetProductLock();
+    currentStoryboardHistoryId = null;
+    document.getElementById('resultView').classList.add('hidden'); document.getElementById('creatorFormView').classList.remove('hidden');
+    updateSummaryPill();
+}
+
+/* ================================================================= */
+/* PIPELINE IMAGE-TO-VIDEO: INTEGRASI n8n WEBHOOK                   */
+/* ================================================================= */
+function buildScenePayloadForN8n(sceneIdx) {
+    if (sceneIdx < 0 || !state.directorData?.scenes?.[sceneIdx]) return null;
+    const scene = state.directorData.scenes[sceneIdx];
+    const imagePromptText = (document.getElementById('masterImagePrompt_' + sceneIdx)?.value || scene.masterImagePrompt || '').trim();
+    const videoPromptText = (document.getElementById('masterVideoPrompt_' + sceneIdx)?.value || scene.promptVideo || scene.camera_movement || '').trim();
+    const dialogueText = (document.getElementById('dialogueText_' + sceneIdx)?.value || scene.dialogueOrNarration || '').trim();
+    const imageDataUrl = getSceneImageDataUrl(sceneIdx) || '';
+
+    return {
+        scene_number: scene.sceneNumber || (sceneIdx + 1),
+        scene_index: sceneIdx,
+        visual_goal: scene.visualGoal || '',
+        image_prompt: imagePromptText,
+        video_prompt: videoPromptText,
+        dialogue_or_narration: dialogueText,
+        image_data: imageDataUrl,
+        has_image: Boolean(imageDataUrl && imageDataUrl.startsWith('data:image/')),
+        duration: state.durationPerScene || '5s',
+        aspect_ratio: state.aspectRatio || '16:9'
+    };
+}
+
+async function renderSceneToN8n(sceneIdx) {
+    const webhookUrl = getN8nWebhookUrl();
+    if (!webhookUrl) {
+        openN8nModal('Silakan masukkan dan simpan URL Webhook n8n Anda terlebih dahulu.');
+        return;
+    }
+
+    const sceneData = buildScenePayloadForN8n(sceneIdx);
+    if (!sceneData) {
+        showCanvasNotice('Data scene tidak ditemukan.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById(`btnRenderSceneN8n_${sceneIdx}`);
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Mengirim ke n8n...</span>`;
+    }
+
+    try {
+        const payload = {
+            event: "render_scene_video",
+            project_title: state.story || "Trendora AI Storyboard",
+            mode: state.storyboardMode || "commercial",
+            style: state.visualStyle || "Auto",
+            episode: state.currentEpisode || 1,
+            scene: sceneData,
+            user: {
+                name: (typeof currentUser !== 'undefined' && currentUser?.name) ? currentUser.name : "Member",
+                email: (typeof currentUser !== 'undefined' && currentUser?.email) ? currentUser.email : ""
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        const res = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            throw new Error(`HTTP error status ${res.status}`);
+        }
+
+        showCanvasNotice(`Scene ${sceneData.scene_number} berhasil dikirim ke n8n untuk render video!`, 'success');
+        if (btn) {
+            btn.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-300"></i><span>Terkirim ke n8n!</span>`;
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }, 3000);
+        }
+    } catch (err) {
+        console.error("n8n Scene Render Error:", err);
+        showCanvasNotice(`Gagal mengirim Scene ke n8n: ${err.message}. Pastikan webhook n8n aktif.`, 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+}
+
+async function renderAllScenesToN8n() {
+    const webhookUrl = getN8nWebhookUrl();
+    if (!webhookUrl) {
+        openN8nModal('Silakan masukkan dan simpan URL Webhook n8n Anda terlebih dahulu.');
+        return;
+    }
+
+    if (!state.directorData || !state.directorData.scenes || state.directorData.scenes.length === 0) {
+        showCanvasNotice('Belum ada data storyboard untuk dikirim ke n8n!', 'error');
+        return;
+    }
+
+    const scenes = state.directorData.scenes;
+    const scenesPayload = scenes.map((_, idx) => buildScenePayloadForN8n(idx)).filter(Boolean);
+
+    const btn = document.getElementById('btnSendN8nAll') || document.getElementById('btnSendN8n');
+    const originalHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Mengirim ${scenesPayload.length} Scene...</span>`;
+    }
+
+    try {
+        const payload = {
+            event: "render_full_storyboard",
+            project_title: state.story || "Trendora AI Storyboard",
+            mode: state.storyboardMode || "commercial",
+            style: state.visualStyle || "Auto",
+            audio_mode: state.audioMode || "Voiceover",
+            aspect_ratio: state.aspectRatio || "16:9",
+            duration_per_scene: state.durationPerScene || "5s",
+            episode: state.currentEpisode || 1,
+            total_scenes: scenesPayload.length,
+            scenes: scenesPayload,
+            user: {
+                name: (typeof currentUser !== 'undefined' && currentUser?.name) ? currentUser.name : "Member",
+                email: (typeof currentUser !== 'undefined' && currentUser?.email) ? currentUser.email : ""
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        const res = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            throw new Error(`HTTP error status ${res.status}`);
+        }
+
+        showCanvasNotice(`Semua scene (${scenesPayload.length} scene) berhasil dikirim ke n8n untuk render video!`, 'success');
+        if (btn) {
+            btn.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-300"></i><span>Terkirim ke n8n!</span>`;
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }, 3000);
+        }
+    } catch (err) {
+        console.error("n8n Full Render Error:", err);
+        showCanvasNotice(`Gagal mengirim ke n8n: ${err.message}. Pastikan webhook n8n aktif.`, 'error');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+}
+
+// Backward compatibility alias
+const sendDataToN8n = renderAllScenesToN8n;
+
+async function restoreHistoryRecord(id) {
+    const record = await getHistoryRecord(id); if (!record) return;
+    currentStoryboardHistoryId = record.id;
+    const config = record.configSnapshot || {};
+    state.directorData = migrateStoryboardBreakdown(record.breakdown, config);
+    state.story = config.story || state.story || '';
+    if (config.storyboardMode && STORYBOARD_MODE_REGISTRY[config.storyboardMode]) {
+        selectStoryboardMode(config.storyboardMode);
+    }
+    state.sceneCount = Number(config.sceneCount || record.sceneCount || state.sceneCount);
+    state.shotsPerScene = Number(config.shotsPerScene || record.shotsPerScene || state.shotsPerScene);
+    state.durationPerScene = config.durationPerScene || state.durationPerScene;
+    state.aspectRatio = config.aspectRatio || record.aspectRatio || state.aspectRatio;
+    state.visualStyle = 'Auto';
+    state.customStyle = '';
+    if (config.animationStyle) state.animationStyle = config.animationStyle;
+    if (config.animationCustomStyle != null) state.animationCustomStyle = config.animationCustomStyle;
+    if (config.animationGenre) state.animationGenre = config.animationGenre;
+    state.episodeCount = Number(config.episodeCount || state.episodeCount || 1);
+    state.currentEpisode = Number(record.episode || config.currentEpisode || 1);
+    state.seriesPlan = Array.isArray(config.seriesPlan)
+        ? config.seriesPlan
+        : (record.breakdown && Array.isArray(record.breakdown.seriesPlan) ? record.breakdown.seriesPlan : null);
+    state.episodeBible = record.breakdown && record.breakdown.masterVisualIdentity
+        ? record.breakdown.masterVisualIdentity
+        : state.episodeBible;
+    state.audioMode = config.audioMode || state.audioMode;
+    state.language = config.language || state.language;
+    applyStoryboardModeStyleDefaults(state.storyboardMode);
+    const promptEl = document.getElementById('promptInput');
+    if (promptEl) promptEl.value = state.story;
+    updateSummaryPill();
+    setActiveViewKey('storyboard-create');
+    setActiveSidebarItem('storyboard-create');
+    expandNavGroup('storyboard');
+    showAppView();
+    renderDirectorIntent(record.breakdown);
+    renderSocialPack(record.breakdown);
+    const images = Array.isArray(record.images) ? record.images : [];
+    state.directorData.scenes.forEach((scene, index) => {
+        if (images[index]) {
+            scene.finalAssetState = Object.assign({}, scene.finalAssetState || {}, {
+                imageDataUrl: images[index],
+                imagePrompt: scene.masterImagePrompt || '',
+                videoPrompt: scene.masterVideoPrompt || '',
+                updatedAt: record.timestamp || new Date().toISOString()
+            });
+        }
+    });
+    record.breakdown = state.directorData;
+    record.images = images;
+    record.schemaVersion = 'V4.0';
+    await saveToHistory(record);
+    state.episodeSeries = [{
+        episode: state.currentEpisode,
+        breakdown: record.breakdown,
+        images: images,
+        historyId: record.id
+    }];
+    await renderStoryboardResults(record.breakdown, images);
+}
+
