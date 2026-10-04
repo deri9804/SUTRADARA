@@ -5661,6 +5661,10 @@ async function continueNextEpisode() {
     }
     const cap = Math.min(5, Number(state.episodeCount) || 1);
     if (state.currentEpisode >= cap) return;
+    if (!isCurrentEpisodeComplete()) {
+        showCanvasNotice('Selesaikan dulu episode ' + state.currentEpisode + ' Boss..');
+        return;
+    }
     const completed = (state.episodeSeries || []).find(item => item.episode === state.currentEpisode);
     if (completed && completed.breakdown) {
         state.seriesPlan = completed.breakdown.seriesPlan || state.seriesPlan;
@@ -7001,6 +7005,8 @@ SCENE VISUAL VARIETY: Beri setiap scene satu sceneVisualPlan yang berbeda fungsi
 7. SERIES: Kerjakan HANYA episode ${(Number(config.currentEpisode) || 1)} dari ${Math.min(5, Number(config.episodeCount) || 1)}. Jangan tulis episode lain di JSON ini. Episode ini harus terasa lengkap dan WOW, lalu menyambung serial jika masih ada part berikutnya.
 8. DIALOG: Pertengkaran, jual-beli, tawar-menawar, tanya-jawab = dialog DUA ARAH, pendek, tidak terpotong. Suara tiap karakter BEKU di semua scene/episode.
 8B. AUDIO PERFORMANCE: Untuk setiap scene ber-audio, isi audioDirection dengan sceneEmotion, intensity 1-10, pacing, soundTexture, dan performanceNotes. Tulis arahan delivery per pembicara di [AUDIO / DIALOGUE] dengan format [specific expression] CHARACTER_N: "...": pitch, volume, tempo, stress, pause, breath, facial expression, eye focus, posture, dan gesture. Setiap giliran wajib memiliki ekspresi spesifik yang kaya dan sesuai niat karakter; jangan gunakan delivery atau ekspresi flat/default jika emosi scene berubah.
+8C. DIALOGUE TURN FORMAT: Jika ada dua atau lebih karakter yang berinteraksi, dialogueOrNarration dan blok [AUDIO / DIALOGUE] WAJIB memakai satu baris per giliran dengan label pembicara yang jelas: CHARACTER_1: "..." lalu CHARACTER_2: "...". Jangan menggabungkan seluruh percakapan menjadi satu paragraf. Jangan menulis header [AUDIO / DIALOGUE] lebih d
+... [truncated for diff preview]
 8C. DIALOGUE TURN FORMAT: Jika ada dua atau lebih karakter yang berinteraksi, dialogueOrNarration dan blok [AUDIO / DIALOGUE] WAJIB memakai satu baris per giliran dengan label pembicara yang jelas: CHARACTER_1: "..." lalu CHARACTER_2: "...". Jangan menggabungkan seluruh percakapan menjadi satu paragraf. Jangan menulis header [AUDIO / DIALOGUE] lebih dari sekali.
 8D. DIALOGUE PLAN FIRST: sebelum menulis dialogueOrNarration, buat dialoguePlan untuk setiap scene dengan mode, participants, dramaticObjective, trigger, turnPattern, tone, dan forbidden. dialoguePlan harus berasal dari aksi visual, hubungan karakter, dan perubahan emosi scene yang sama. Setiap baris dialog wajib merespons baris/aksi sebelumnya, membawa niat karakter, dan mengubah atau memperjelas keadaan scene. Dilarang mengisi dialog dengan kalimat generik, ringkasan prompt, atau monolog jika dua peserta terlihat dan berinteraksi.
 8E. AUDIO MUST MATCH PICTURE: Tulis dialog setelah menentukan aksi visual scene. Sebut atau respons hanya pada objek, tempat, tindakan, hubungan, dan emosi yang benar-benar ada di scene ini. Jangan membawa dialog, voice-over, CTA, konflik, atau informasi dari scene lain. Jika dialog tidak dapat dijelaskan oleh visual anchor scene ini, tulis ulang dialognya.
@@ -9419,4 +9425,3 @@ async function restoreHistoryRecord(id) {
     }];
     await renderStoryboardResults(record.breakdown, images);
 }
-
