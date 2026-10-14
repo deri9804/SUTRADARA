@@ -587,6 +587,84 @@ function logSupabaseDiagnostics() {
     }
 }
 
+// =================================================================
+// WHATSAPP BOT INTEGRATION MODAL (Baileys / Trendora WA)
+// =================================================================
+function openWaBotModal() {
+    const modal = document.getElementById('waBotModal');
+    if (!modal) return;
+
+    // Set Webhook URL dynamically from origin
+    const input = document.getElementById('inputWaWebhookUrl');
+    if (input) {
+        const origin = (window.location && window.location.origin) ? window.location.origin : 'https://trendora.vercel.app';
+        input.value = `${origin}/api/webhook-wa`;
+    }
+
+    // Update phone badge
+    const phoneBadge = document.getElementById('waModalPhoneBadge');
+    if (phoneBadge) {
+        const phone = (currentUser && currentUser.phone) || '';
+        if (phone) {
+            phoneBadge.textContent = phone;
+            phoneBadge.className = 'text-emerald-400 font-mono font-bold text-xs truncate';
+        } else {
+            phoneBadge.textContent = 'Terhubung Otomatis';
+            phoneBadge.className = 'text-gray-300 font-mono font-bold text-xs truncate';
+        }
+    }
+
+    // Update Gemini API Key badge
+    const geminiBadge = document.getElementById('waModalGeminiBadge');
+    if (geminiBadge) {
+        const key = getGeminiApiKey();
+        if (key) {
+            geminiBadge.innerHTML = '<span class="text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i>Terpasang 🟢</span>';
+        } else {
+            geminiBadge.innerHTML = '<span class="text-amber-400 cursor-pointer hover:underline" onclick="closeWaBotModal(); openApiKeyModal();"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Belum Diatur ⚠️</span>';
+        }
+    }
+
+    // Hide previous copy notice
+    const notice = document.getElementById('waWebhookCopyNotice');
+    if (notice) notice.classList.add('hidden');
+
+    modal.classList.remove('hidden');
+}
+
+function closeWaBotModal() {
+    const modal = document.getElementById('waBotModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function copyWaBotWebhookUrl() {
+    const input = document.getElementById('inputWaWebhookUrl');
+    const notice = document.getElementById('waWebhookCopyNotice');
+    const btn = document.getElementById('btnCopyWaWebhook');
+    if (!input) return;
+
+    input.select();
+    input.setSelectionRange(0, 99999);
+    try {
+        navigator.clipboard.writeText(input.value);
+    } catch (_) {
+        document.execCommand('copy');
+    }
+
+    if (notice) {
+        notice.classList.remove('hidden');
+    }
+    if (btn) {
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i><span>Tersalin!</span>';
+        btn.classList.add('scale-105');
+        setTimeout(() => {
+            btn.innerHTML = origHtml;
+            btn.classList.remove('scale-105');
+        }, 1800);
+    }
+}
+
 const AUTH_REMEMBER_KEY = 'TRENDORA_remember';
 const AUTH_UNTIL_KEY = 'TRENDORA_auth_until';
 const AUTH_DEVICE_KEY = 'TRENDORA_device_id';

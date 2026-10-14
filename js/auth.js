@@ -91,6 +91,7 @@ async function handleSupabaseUserSession(user) {
         currentUser.name = profileFullName;
         currentUser.status = profileStatus;
         currentUser.role = profileRole;
+        currentUser.phone = (profile && profile.phone) ? profile.phone : null;
         currentUser.loggedIn = true;
         deviceLimitBlockedUserId = null;
 
