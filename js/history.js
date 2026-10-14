@@ -4,6 +4,7 @@
 
 const HISTORY_FILTER_LABELS = {
     storyboard: 'Storyboard',
+    whatsapp: 'WhatsApp Bot',
     foto: 'FotoGenerate',
     thumbnail: 'Thumbnail',
     infographic: 'Infographic',
@@ -60,7 +61,34 @@ async function loadAllUnifiedHistory() {
             payload: rec
         };
     });
-    return sbNorm.concat(igNorm).sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+
+    // Sinkronisasi Riwayat Perintah WhatsApp dari Supabase
+    let waNorm = [];
+    if (typeof supabaseClient !== 'undefined' && supabaseClient && currentUser && currentUser.userId) {
+        try {
+            const { data: waList, error: waErr } = await supabaseClient
+                .from('wa_storyboards')
+                .select('*')
+                .eq('user_id', currentUser.userId)
+                .order('created_at', { ascending: false })
+                .limit(50);
+            if (!waErr && Array.isArray(waList)) {
+                waNorm = waList.map(rec => ({
+                    unifiedId: 'wa:' + rec.id,
+                    type: 'whatsapp',
+                    ts: rec.created_at || '',
+                    title: (rec.prompt || 'Perintah WhatsApp').slice(0, 45),
+                    summary: 'WhatsApp Bot • ' + (rec.prompt || '').slice(0, 70),
+                    thumb: '',
+                    payload: rec
+                }));
+            }
+        } catch (e) {
+            console.warn('[History] WA sync failed:', e);
+        }
+    }
+
+    return sbNorm.concat(igNorm).concat(waNorm).sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
 }
 
 async function renderUnifiedHistoryView() {
@@ -78,23 +106,28 @@ async function renderUnifiedHistoryView() {
         const toolLabel = HISTORY_FILTER_LABELS[rec.type] || 'Storyboard';
         const tsStr = formatTimestamp(rec.ts);
         const isVideoMerge = rec.type === 'video-merge';
+        const isWa = rec.type === 'whatsapp';
         const thumb = rec.thumb && isVideoMerge
             ? `<video src="${rec.thumb}" class="w-full h-full object-cover" muted playsinline preload="metadata"></video>`
             : rec.thumb
             ? `<img src="${rec.thumb}" class="w-full h-full object-cover" />`
+            : isWa
+            ? `<div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-950/80 via-black to-slate-950 text-emerald-400 border border-emerald-500/20"><i class="fa-brands fa-whatsapp text-3xl mb-1"></i><span class="text-[9px] font-extrabold tracking-wider text-emerald-300">WA SCRIPT</span></div>`
             : `<div class="w-full h-full flex items-center justify-center text-gray-600"><i class="fa-solid fa-clapperboard text-2xl"></i></div>`;
-        const accent = rec.type === 'storyboard' ? 'purple' : rec.type === 'foto' ? 'pink' : rec.type === 'thumbnail' ? 'violet' : rec.type === 'infographic' ? 'blue' : rec.type === 'video-merge' ? 'amber' : 'orange';
+        const accent = rec.type === 'storyboard' ? 'purple' : isWa ? 'emerald' : rec.type === 'foto' ? 'pink' : rec.type === 'thumbnail' ? 'violet' : rec.type === 'infographic' ? 'blue' : rec.type === 'video-merge' ? 'amber' : 'orange';
+        const badgeBg = isWa ? 'bg-emerald-500/30 text-emerald-200 border-emerald-400/40' : 'bg-black/70 text-white border-white/20';
+        const btnAccent = isWa ? 'text-emerald-300 hover:text-white border-emerald-500/40 hover:border-emerald-400/80 bg-emerald-500/10 hover:bg-emerald-500/30' : 'text-purple-300 hover:text-white border-purple-500/40 hover:border-purple-400/80 bg-purple-500/5 hover:bg-purple-500/20';
         return `
             <div class="glass-card rounded-2xl p-4 border border-white/10 shadow-lg hover:border-${accent}-500/40 transition-all cursor-pointer" onclick="reopenHistoryRecord('${escapeHtml(rec.unifiedId)}')">
                 <div class="aspect-video bg-black/80 rounded-xl overflow-hidden border border-white/10 mb-3 relative">
                     ${thumb}
-                    <span class="absolute top-2 left-2 text-[9px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-full bg-black/70 text-white border border-white/20">${escapeHtml(toolLabel)}</span>
+                    <span class="absolute top-2 left-2 text-[9px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-full ${badgeBg}">${escapeHtml(toolLabel)}</span>
                 </div>
                 <p class="text-xs font-bold text-white truncate">${escapeHtml(rec.title)}</p>
                 <p class="text-[10px] text-gray-400 mt-1 truncate">${escapeHtml(rec.summary)}</p>
                 <p class="text-[9px] text-gray-500 font-mono mt-2">${escapeHtml(tsStr)}</p>
                 <div class="mt-3 flex items-center justify-between gap-2">
-                    <button onclick="event.stopPropagation(); reopenHistoryRecord('${escapeHtml(rec.unifiedId)}')" class="text-[10px] font-bold uppercase tracking-wider text-purple-300 hover:text-white border border-purple-500/40 hover:border-purple-400/80 rounded-lg px-3 py-1.5 transition bg-purple-500/5 hover:bg-purple-500/20">
+                    <button onclick="event.stopPropagation(); reopenHistoryRecord('${escapeHtml(rec.unifiedId)}')" class="text-[10px] font-bold uppercase tracking-wider ${btnAccent} rounded-lg px-3 py-1.5 transition">
                         <i class="fa-solid fa-folder-open mr-1"></i>Buka
                     </button>
                     <button onclick="event.stopPropagation(); deleteUnifiedHistoryRecord('${escapeHtml(rec.unifiedId)}')" class="text-[10px] text-red-400 hover:text-white border border-red-500/30 hover:border-red-400/80 rounded-lg px-2.5 py-1.5 transition bg-red-500/5 hover:bg-red-500/20">
@@ -281,6 +314,10 @@ async function deleteUnifiedHistoryRecord(unifiedId) {
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => reject(tx.error);
             });
+        } else if (store === 'wa') {
+            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+                await supabaseClient.from('wa_storyboards').delete().eq('id', id);
+            }
         }
     } catch (err) {
         console.warn('Failed to delete history record:', err);
@@ -301,6 +338,10 @@ async function reopenHistoryRecord(unifiedId) {
         showAppView();
         return;
     }
+    if (type === 'whatsapp') {
+        reopenWhatsAppFromHistory(payload);
+        return;
+    }
     if (type === 'voiceover') {
         reopenVoiceOverFromHistory(payload);
         return;
@@ -315,6 +356,102 @@ async function reopenHistoryRecord(unifiedId) {
     }
     // Image Gen tools
     reopenImageGenFromHistory(payload);
+}
+
+let currentWaPayload = null;
+
+function reopenWhatsAppFromHistory(payload) {
+    let modal = document.getElementById('waHistoryModal');
+    if (!modal) {
+        const modalHtml = `
+        <div id="waHistoryModal" class="hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="glass-card rounded-3xl p-6 border border-emerald-500/30 max-w-xl w-full space-y-4 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-cyan-500"></div>
+                <div class="flex justify-between items-center border-b border-white/10 pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                            <i class="fa-brands fa-whatsapp text-lg"></i>
+                        </span>
+                        <div>
+                            <h3 class="font-extrabold text-white text-sm">Riwayat Perintah WhatsApp</h3>
+                            <p id="waModalMeta" class="text-[10px] text-gray-400"></p>
+                        </div>
+                    </div>
+                    <button onclick="closeWaHistoryModal()" class="text-gray-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div class="space-y-3 flex-1 overflow-y-auto pr-1 text-xs">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-wider">Perintah Ide dari WA:</label>
+                        <div id="waModalPrompt" class="p-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-medium italic text-xs"></div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-emerald-400 mb-1 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-film"></i> Hasil Naskah & Konsep Video:
+                        </label>
+                        <pre id="waModalResult" class="p-3.5 rounded-xl bg-black/60 border border-white/10 text-gray-200 font-sans text-xs whitespace-pre-wrap leading-relaxed max-h-[320px] overflow-y-auto selection:bg-emerald-500/30"></pre>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-white/10 flex gap-2">
+                    <button onclick="closeWaHistoryModal()" class="py-2.5 px-4 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl text-xs font-bold transition">Tutup</button>
+                    <button id="btnCopyWaResult" onclick="copyWaHistoryResult()" class="py-2.5 px-4 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-copy"></i> <span>Salin Naskah</span>
+                    </button>
+                    <button onclick="useWaInStoryboard()" class="flex-1 py-2.5 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-xs font-extrabold uppercase tracking-wider transition flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Buka di Storyboard</span>
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modal = document.getElementById('waHistoryModal');
+    }
+
+    currentWaPayload = payload;
+    const metaEl = document.getElementById('waModalMeta');
+    if (metaEl) {
+        metaEl.textContent = (payload.sender_name || 'Member') + ' (' + (payload.phone_number || '') + ') • ' + formatTimestamp(payload.created_at || payload.ts);
+    }
+    const promptEl = document.getElementById('waModalPrompt');
+    if (promptEl) {
+        promptEl.textContent = '"' + (payload.prompt || '') + '"';
+    }
+    const resultEl = document.getElementById('waModalResult');
+    if (resultEl) {
+        resultEl.textContent = payload.result || '';
+    }
+    modal.classList.remove('hidden');
+}
+
+function closeWaHistoryModal() {
+    const modal = document.getElementById('waHistoryModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function copyWaHistoryResult() {
+    if (!currentWaPayload || !currentWaPayload.result) return;
+    navigator.clipboard.writeText(currentWaPayload.result).then(() => {
+        const btn = document.getElementById('btnCopyWaResult');
+        if (btn) {
+            btn.innerHTML = '<i class="fa-solid fa-check text-emerald-400"></i> <span>Tersalin!</span>';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fa-solid fa-copy"></i> <span>Salin Naskah</span>';
+            }, 1500);
+        }
+    });
+}
+
+function useWaInStoryboard() {
+    if (!currentWaPayload) return;
+    closeWaHistoryModal();
+    const topicInput = document.getElementById('storyboardTopic') || document.getElementById('briefInput');
+    if (topicInput) {
+        topicInput.value = currentWaPayload.prompt || '';
+    }
+    if (typeof setActiveViewKey === 'function') setActiveViewKey('storyboard-create');
+    if (typeof setActiveSidebarItem === 'function') setActiveSidebarItem('storyboard-create');
+    if (typeof showAppView === 'function') showAppView();
 }
 
 function reopenVideoMergeFromHistory(rec) {
