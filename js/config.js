@@ -224,9 +224,20 @@ function saveGeminiApiKeyFromModal() {
         localStorage.removeItem('trendora_gemini_api_key');
         localStorage.removeItem('sutradara_gemini_api_key');
         updateApiKeyIndicator();
+
+        // Sinkronisasi otomatis ke profil Supabase (agar bot WA bisa pakai API Key ini)
+        if (typeof supabaseClient !== 'undefined' && supabaseClient && uid) {
+            try {
+                supabaseClient.from('profiles').update({
+                    gemini_api_key: key,
+                    updated_at: new Date().toISOString()
+                }).eq('id', uid).then().catch(err => console.warn('[Gemini Sync to Supabase]:', err));
+            } catch (_) {}
+        }
+
         if (notice) {
             notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/10 border-emerald-500/20 block';
-            notice.textContent = '✅ Berhasil! API Key Anda tersimpan aman khusus untuk akun Anda di browser ini.';
+            notice.textContent = '✅ Berhasil! API Key tersimpan dan tersinkron ke akun Trendora AI Anda (termasuk untuk WhatsApp Bot).';
         }
         setTimeout(() => { closeApiKeyModal(); }, 1200);
     } catch (e) {
@@ -242,6 +253,14 @@ function removeGeminiApiKey() {
     try {
         if (uid) {
             localStorage.removeItem('trendora_gemini_api_key_' + uid);
+            if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+                try {
+                    supabaseClient.from('profiles').update({
+                        gemini_api_key: null,
+                        updated_at: new Date().toISOString()
+                    }).eq('id', uid).then().catch(() => {});
+                } catch (_) {}
+            }
         }
         localStorage.removeItem('trendora_gemini_api_key');
         localStorage.removeItem('sutradara_gemini_api_key');
@@ -251,7 +270,7 @@ function removeGeminiApiKey() {
         const notice = document.getElementById('apiKeyModalNotice');
         if (notice) {
             notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/10 border-amber-500/20 block';
-            notice.textContent = 'API Key telah dihapus dari akun Anda di perangkat ini.';
+            notice.textContent = 'API Key telah dihapus dari akun Anda.';
         }
     } catch (e) {}
 }

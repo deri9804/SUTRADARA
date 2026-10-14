@@ -70,7 +70,6 @@ module.exports = async function handler(req, res) {
         // Konfigurasi Gateway & Supabase
         const waGatewayUrl = process.env.TRENDORA_WA_URL || 'https://whatsappapi.trendoraautomation.my.id/api/dispatch';
         const waBearerToken = process.env.TRENDORA_WA_TOKEN || '';
-        const geminiApiKey = process.env.GEMINI_API_KEY || '';
         const supabaseUrl = process.env.SUPABASE_URL || 'https://inixcxbvfyvmuuzlkljq.supabase.co';
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_ozGrENkmrJH48KSWov2BIw_2f13d_qH';
 
@@ -108,50 +107,55 @@ module.exports = async function handler(req, res) {
             }
         };
 
-        // 2. VERIFIKASI MEMBER / ADMIN (SaaS Security Gate)
+        // 2. VERIFIKASI MEMBER / ADMIN (SaaS Security Gate via Supabase)
+        let activeMember = null;
+        try {
+            const localZeroPhone = senderPhone.startsWith('62') ? '0' + senderPhone.slice(2) : senderPhone;
+            const queryUrl = `${supabaseUrl}/rest/v1/profiles?or=(phone.eq.${senderPhone},phone.eq.${localZeroPhone})&status=eq.active&select=id,full_name,role,status,phone,gemini_api_key,n8n_webhook_url,n8n_auto_forward&limit=1`;
+            
+            const sbResp = await fetch(queryUrl, {
+                headers: {
+                    'apikey': supabaseKey,
+                    'Authorization': `Bearer ${supabaseKey}`
+                }
+            });
+
+            if (sbResp.ok) {
+                const profiles = await sbResp.json();
+                if (Array.isArray(profiles) && profiles.length > 0) {
+                    activeMember = profiles[0];
+                    console.log(`[WA-WEBHOOK] Member terverifikasi di Supabase: ${activeMember.full_name} (${activeMember.id})`);
+                }
+            }
+        } catch (errDb) {
+            console.warn('[WA-WEBHOOK] Pengecekan Supabase error:', errDb.message);
+        }
+
+        // Fallback untuk Admin Utama jika belum terdaftar di profiles Supabase
         const ADMIN_DEFAULT_PHONE = '6282375958716';
         const envAdminPhones = (process.env.ADMIN_PHONE || '')
             .split(',')
             .map(p => normalizePhone(p))
             .filter(Boolean);
         const adminPhoneList = [ADMIN_DEFAULT_PHONE, ...envAdminPhones];
+        const isAdmin = adminPhoneList.includes(senderPhone) || (activeMember && activeMember.role === 'admin');
 
-        const isAdmin = adminPhoneList.includes(senderPhone);
-        let activeMember = null;
+        if (!activeMember && isAdmin) {
+            console.log(`[WA-WEBHOOK] Pengirim ${senderPhone} adalah ADMIN (Fallback bypass).`);
+            activeMember = { 
+                id: 'admin', 
+                full_name: 'Admin Trendora', 
+                role: 'admin', 
+                status: 'active',
+                gemini_api_key: process.env.GEMINI_API_KEY || ''
+            };
+        }
 
-        if (isAdmin) {
-            console.log(`[WA-WEBHOOK] Pengirim ${senderPhone} adalah ADMIN.`);
-            activeMember = { id: 'admin', full_name: 'Admin Trendora', role: 'admin', status: 'active' };
-        } else {
-            // Cek ke Database Supabase: Apakah nomor ini terdaftar sebagai member aktif?
-            try {
-                const localZeroPhone = senderPhone.startsWith('62') ? '0' + senderPhone.slice(2) : senderPhone;
-                const queryUrl = `${supabaseUrl}/rest/v1/profiles?or=(phone.eq.${senderPhone},phone.eq.${localZeroPhone})&status=eq.active&select=id,full_name,role,status,n8n_webhook_url,n8n_auto_forward&limit=1`;
-                
-                const sbResp = await fetch(queryUrl, {
-                    headers: {
-                        'apikey': supabaseKey,
-                        'Authorization': `Bearer ${supabaseKey}`
-                    }
-                });
-
-                if (sbResp.ok) {
-                    const profiles = await sbResp.json();
-                    if (Array.isArray(profiles) && profiles.length > 0) {
-                        activeMember = profiles[0];
-                        console.log(`[WA-WEBHOOK] Member terverifikasi di Supabase: ${activeMember.full_name} (${activeMember.id})`);
-                    }
-                }
-            } catch (errDb) {
-                console.warn('[WA-WEBHOOK] Pengecekan Supabase error:', errDb.message);
-            }
-
-            // JIKA NOMOR BUKAN MEMBER TERDAFTAR / CHAT DARI ORANG LUAR:
-            // Sesuai aturan: ABAIKAN TOTAL (Silent Ignore), JANGAN balas apa pun agar tidak mengganggu chat bisnis/pribadi.
-            if (!activeMember) {
-                console.log(`[WA-WEBHOOK] Mengabaikan chat dari ${senderPhone} (Bukan pemilik nomor terdaftar / pesan orang luar). Bot diam.`);
-                return res.status(200).json({ status: 'ignored_non_member' });
-            }
+        // JIKA NOMOR BUKAN MEMBER TERDAFTAR / CHAT DARI ORANG LUAR:
+        // Sesuai aturan: ABAIKAN TOTAL (Silent Ignore), JANGAN balas apa pun agar tidak mengganggu chat bisnis/pribadi.
+        if (!activeMember) {
+            console.log(`[WA-WEBHOOK] Mengabaikan chat dari ${senderPhone} (Bukan pemilik nomor terdaftar / pesan orang luar). Bot diam.`);
+            return res.status(200).json({ status: 'ignored_non_member' });
         }
 
         // 3. Command Bantuan / Menu (Untuk Member Terdaftar)
@@ -246,17 +250,29 @@ Silakan ketik ide video Anda sekarang! 🚀`;
             return res.status(200).json({ status: 'n8n_status_checked' });
         }
 
-        // 4. Kirim Notifikasi Tunggu
-        await sendWaReply(`⏳ *TRENDORA AI sedang merancang konsep video untuk Anda...*\n\n_"${userPrompt.slice(0, 100)}${userPrompt.length > 100 ? '...' : ''}"_\n\nEstimasi proses 5-10 detik. Tunggu sebentar ya kak! 🎬`);
+        // 4. Validasi Gemini API Key Milik Member (BYOK - Bring Your Own Key)
+        const memberGeminiKey = (activeMember && activeMember.gemini_api_key && activeMember.gemini_api_key.trim()) ||
+                                (isAdmin ? (process.env.GEMINI_API_KEY || '') : '');
 
-        // 5. Cek API Key Gemini
-        if (!geminiApiKey) {
+        if (!memberGeminiKey) {
+            const memberName = activeMember.full_name || 'Member';
             await sendWaReply(
-                `⚠️ *GEMINI_API_KEY Belum Dikonfigurasi di Vercel*\n\n` +
-                `Silakan hubungi Admin (082375958716) untuk memeriksa pengaturan server AI.`
+                `⚠️ *Halo Kak ${memberName}!*
+
+Google Gemini API Key belum terpasang di akun Trendora AI Anda.
+
+*Cara Aktivasi Sangat Cepat & Mudah:*
+1️⃣ Buka web: https://trendora.vercel.app
+2️⃣ Klik menu *Gemini Key* (di pojok kanan atas)
+3️⃣ Masukkan API Key Anda (Gratis dari Google AI Studio) lalu klik *Simpan*.
+
+Setelah disimpan di web, bot WhatsApp ini otomatis aktif dan siap membuatkan naskah video untuk Anda! 🚀🎬`
             );
-            return res.status(200).json({ error: 'Missing GEMINI_API_KEY' });
+            return res.status(200).json({ status: 'no_gemini_key_prompted' });
         }
+
+        // 5. Kirim Notifikasi Tunggu
+        await sendWaReply(`⏳ *TRENDORA AI sedang merancang konsep video untuk Anda...*\n\n_"${userPrompt.slice(0, 100)}${userPrompt.length > 100 ? '...' : ''}"_\n\nEstimasi proses 5-10 detik. Tunggu sebentar ya kak! 🎬`);
 
         // 6. Generate Konsep & Naskah Video via Gemini AI
         const systemPrompt = 
@@ -305,7 +321,7 @@ Format Balasan WA Wajib:
 ---
 ✨ _Dirancang otomatis oleh TRENDORA AI Director Engine_`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${memberGeminiKey}`;
 
         const geminiResp = await fetch(geminiUrl, {
             method: 'POST',

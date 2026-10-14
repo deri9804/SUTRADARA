@@ -15,7 +15,7 @@ async function handleSupabaseUserSession(user) {
     try {
         const { data: profileRows, error: profileError } = await supabaseClient
             .from('profiles')
-            .select('id, full_name, role, status')
+            .select('id, full_name, role, status, phone, gemini_api_key, n8n_webhook_url, n8n_auto_forward')
             .eq('id', user.id)
             .limit(5);
 
@@ -100,6 +100,26 @@ async function handleSupabaseUserSession(user) {
         startDeviceWatcher(user.id, getOrCreateDeviceId());
 
         await loadMemberSettings(user.id);
+
+        // Auto-sinkronisasi Gemini API Key antara Supabase Profile dan LocalStorage
+        try {
+            const currentLocalKey = (localStorage.getItem('trendora_gemini_api_key_' + user.id) || '').trim();
+            const remoteKey = (profile && profile.gemini_api_key && typeof profile.gemini_api_key === 'string') 
+                ? profile.gemini_api_key.trim() 
+                : '';
+
+            if (remoteKey && !currentLocalKey) {
+                // Ambil dari Supabase jika di browser baru masih kosong
+                localStorage.setItem('trendora_gemini_api_key_' + user.id, remoteKey);
+            } else if (currentLocalKey && !remoteKey) {
+                // Upload key lokal yang sudah ada ke Supabase agar bot WA bisa pakai
+                supabaseClient.from('profiles').update({
+                    gemini_api_key: currentLocalKey,
+                    updated_at: new Date().toISOString()
+                }).eq('id', user.id).then().catch(() => {});
+            }
+        } catch (_) {}
+
         updateUserHeaderUI();
         updateApiKeyIndicator();
         updateN8nIndicator();
