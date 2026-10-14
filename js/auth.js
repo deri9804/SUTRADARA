@@ -15,7 +15,7 @@ async function handleSupabaseUserSession(user) {
     try {
         const { data: profileRows, error: profileError } = await supabaseClient
             .from('profiles')
-            .select('id, full_name, role, status, phone, gemini_api_key, n8n_webhook_url, n8n_auto_forward')
+            .select('*')
             .eq('id', user.id)
             .limit(5);
 

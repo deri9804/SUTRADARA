@@ -111,7 +111,7 @@ module.exports = async function handler(req, res) {
         let activeMember = null;
         try {
             const localZeroPhone = senderPhone.startsWith('62') ? '0' + senderPhone.slice(2) : senderPhone;
-            const queryUrl = `${supabaseUrl}/rest/v1/profiles?or=(phone.eq.${senderPhone},phone.eq.${localZeroPhone})&status=eq.active&select=id,full_name,role,status,phone,gemini_api_key,n8n_webhook_url,n8n_auto_forward&limit=1`;
+            const queryUrl = `${supabaseUrl}/rest/v1/profiles?or=(phone.eq.${senderPhone},phone.eq.${localZeroPhone})&status=eq.active&select=*&limit=1`;
             
             const sbResp = await fetch(queryUrl, {
                 headers: {
