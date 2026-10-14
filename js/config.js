@@ -356,12 +356,33 @@ function removeN8nWebhookUrl() {
     } catch (_) {}
     const input = document.getElementById('inputN8nWebhookUrl');
     if (input) input.value = '';
+    const toggle = document.getElementById('toggleN8nAutoForward');
+    if (toggle) toggle.checked = false;
+    setN8nAutoForward(false);
     const notice = document.getElementById('n8nModalNotice');
     if (notice) {
         notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/10 border-amber-500/20 block';
-        notice.textContent = 'URL Webhook n8n telah dihapus dari akun Anda.';
+        notice.textContent = 'URL Webhook dan Auto-Forward n8n telah dinonaktifkan.';
     }
     updateN8nIndicator();
+}
+
+function getN8nAutoForward() {
+    const uid = getActiveUserId();
+    if (!uid) return false;
+    try {
+        return localStorage.getItem('trendora_n8n_auto_forward_' + uid) === 'true';
+    } catch (_) {
+        return false;
+    }
+}
+
+function setN8nAutoForward(enabled) {
+    const uid = getActiveUserId();
+    if (!uid) return;
+    try {
+        localStorage.setItem('trendora_n8n_auto_forward_' + uid, enabled ? 'true' : 'false');
+    } catch (_) {}
 }
 
 function updateN8nIndicator() {
@@ -381,10 +402,12 @@ function updateN8nIndicator() {
 function openN8nModal(noticeMsg) {
     const modal = document.getElementById('n8nWebhookModal');
     const input = document.getElementById('inputN8nWebhookUrl');
+    const toggle = document.getElementById('toggleN8nAutoForward');
     const notice = document.getElementById('n8nModalNotice');
     if (!modal) return;
     const currentUrl = getN8nWebhookUrl();
     if (input) input.value = currentUrl;
+    if (toggle) toggle.checked = getN8nAutoForward();
     if (notice) {
         if (noticeMsg) {
             notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/10 border-amber-500/20 block';
@@ -504,14 +527,29 @@ function saveN8nWebhookFromModal() {
 
     setN8nWebhookUrl(url);
 
+    const toggle = document.getElementById('toggleN8nAutoForward');
+    const autoForward = toggle ? toggle.checked : false;
+    setN8nAutoForward(autoForward);
+
+    // Sinkronisasi ke Supabase profile jika sedang login
+    if (typeof supabaseClient !== 'undefined' && supabaseClient && uid) {
+        try {
+            supabaseClient.from('profiles').update({
+                n8n_webhook_url: url,
+                n8n_auto_forward: autoForward,
+                updated_at: new Date().toISOString()
+            }).eq('id', uid).then().catch(() => {});
+        } catch (_) {}
+    }
+
     if (notice) {
         notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/20 border-emerald-500/40 block';
-        notice.innerHTML = '<i class="fa-solid fa-circle-check mr-1.5 text-emerald-400"></i>URL Webhook n8n berhasil disimpan khusus untuk akun Anda!';
+        notice.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5 text-emerald-400"></i>Pengaturan n8n berhasil disimpan! Auto-Forward: <strong>${autoForward ? 'AKTIF (ON)' : 'NONAKTIF (OFF)'}</strong>`;
     }
 
     setTimeout(() => {
         closeN8nModal();
-    }, 900);
+    }, 1100);
 }
 
 function logSupabaseDiagnostics() {

@@ -126,7 +126,7 @@ module.exports = async function handler(req, res) {
             // Cek ke Database Supabase: Apakah nomor ini terdaftar sebagai member aktif?
             try {
                 const localZeroPhone = senderPhone.startsWith('62') ? '0' + senderPhone.slice(2) : senderPhone;
-                const queryUrl = `${supabaseUrl}/rest/v1/profiles?or=(phone.eq.${senderPhone},phone.eq.${localZeroPhone})&status=eq.active&select=id,full_name,role,status&limit=1`;
+                const queryUrl = `${supabaseUrl}/rest/v1/profiles?or=(phone.eq.${senderPhone},phone.eq.${localZeroPhone})&status=eq.active&select=id,full_name,role,status,n8n_webhook_url,n8n_auto_forward&limit=1`;
                 
                 const sbResp = await fetch(queryUrl, {
                     headers: {
@@ -146,21 +146,11 @@ module.exports = async function handler(req, res) {
                 console.warn('[WA-WEBHOOK] Pengecekan Supabase error:', errDb.message);
             }
 
-            // JIKA NOMOR BELUM TERDAFTAR / BUKAN MEMBER AKTIF:
+            // JIKA NOMOR BUKAN MEMBER TERDAFTAR / CHAT DARI ORANG LUAR:
+            // Sesuai aturan: ABAIKAN TOTAL (Silent Ignore), JANGAN balas apa pun agar tidak mengganggu chat bisnis/pribadi.
             if (!activeMember) {
-                console.warn(`[WA-WEBHOOK] Akses ditolak untuk nomor belum terdaftar: ${senderPhone}`);
-                
-                const unregisteredNotice = 
-`Halo Kak! Nomor WhatsApp Anda (*${rawPhone}*) belum terdaftar sebagai member resmi di *TRENDORA AI*.
-
-Untuk aktivasi akun dan mulai membuat naskah & konsep video otomatis, silakan hubungi Admin kami:
-📲 *WhatsApp Admin:* 082375958716
-🔗 *Klik untuk Chat:* https://wa.me/6282375958716?text=Halo%20Admin,%20saya%20mau%20aktivasi%20member%20Trendora%20AI
-
-Terima kasih! 🙏🎬`;
-
-                await sendWaReply(unregisteredNotice);
-                return res.status(200).json({ status: 'unregistered_notice_sent' });
+                console.log(`[WA-WEBHOOK] Mengabaikan chat dari ${senderPhone} (Bukan pemilik nomor terdaftar / pesan orang luar). Bot diam.`);
+                return res.status(200).json({ status: 'ignored_non_member' });
             }
         }
 
@@ -187,10 +177,73 @@ _\"animasi: Robot kecil yang tersesat di hutan ajaib mencari baterai energi\"_
 4️⃣ *Ketik Bebas (Natural):*
 _\"Buatkan naskah reels 30 detik untuk jualan hijab anti kusut\"_
 
+⚡ *Perintah Integrasi n8n:*
+• \`n8n on\` : Aktifkan otomatis kirim hasil video ke n8n
+• \`n8n off\` : Matikan otomatis kirim ke n8n
+• \`n8n status\` : Cek status integrasi n8n saat ini
+
 Silakan ketik ide video Anda sekarang! 🚀`;
 
             await sendWaReply(menuText);
             return res.status(200).json({ status: 'menu_sent' });
+        }
+
+        // 3b. Perintah Toggle n8n on / n8n off via WhatsApp
+        if (lowerPrompt === 'n8n on' || lowerPrompt === '/n8n on') {
+            if (activeMember && activeMember.id !== 'admin' && supabaseKey) {
+                try {
+                    await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${activeMember.id}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': supabaseKey,
+                            'Authorization': `Bearer ${supabaseKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ n8n_auto_forward: true })
+                    });
+                } catch (_) {}
+            }
+            activeMember.n8n_auto_forward = true;
+            await sendWaReply(
+                `⚡ *Auto-Forward n8n BERHASIL DIAKTIFKAN (ON)!*\n\n` +
+                `Mulai sekarang, setiap konsep video & prompt yang dibuat via WhatsApp akan *otomatis dikirim ke workflow n8n* Anda untuk diproses lebih lanjut.\n\n` +
+                `_Ketik \`n8n off\` kapan saja jika ingin menonaktifkannya kembali._`
+            );
+            return res.status(200).json({ status: 'n8n_enabled' });
+        }
+
+        if (lowerPrompt === 'n8n off' || lowerPrompt === '/n8n off') {
+            if (activeMember && activeMember.id !== 'admin' && supabaseKey) {
+                try {
+                    await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${activeMember.id}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': supabaseKey,
+                            'Authorization': `Bearer ${supabaseKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ n8n_auto_forward: false })
+                    });
+                } catch (_) {}
+            }
+            activeMember.n8n_auto_forward = false;
+            await sendWaReply(
+                `⏸️ *Auto-Forward n8n DINONAKTIFKAN (OFF).*\n\n` +
+                `Hasil konsep video hanya akan dikirim ke WhatsApp ini dan tersimpan di web dashboard Trendora AI Anda tanpa diteruskan ke n8n.\n\n` +
+                `_Ketik \`n8n on\` untuk mengaktifkannya kembali kapan saja._`
+            );
+            return res.status(200).json({ status: 'n8n_disabled' });
+        }
+
+        if (lowerPrompt === 'n8n status' || lowerPrompt === '/n8n status') {
+            const isCurrentlyOn = activeMember.n8n_auto_forward === true || process.env.N8N_AUTO_FORWARD === 'true';
+            await sendWaReply(
+                `📊 *STATUS INTEGRASI n8n:* \n\n` +
+                `• Auto-Forward: *${isCurrentlyOn ? 'AKTIF (ON) 🟢' : 'NONAKTIF (OFF) ⚪'}*\n` +
+                `• Mode: ${isCurrentlyOn ? 'Naskah otomatis diteruskan ke n8n' : 'Naskah hanya dikirim ke WA & Web'}\n\n` +
+                `_Ketik \`n8n on\` untuk mengaktifkan atau \`n8n off\` untuk mematikan._`
+            );
+            return res.status(200).json({ status: 'n8n_status_checked' });
         }
 
         // 4. Kirim Notifikasi Tunggu
@@ -314,8 +367,44 @@ Format Balasan WA Wajib:
             }
         }
 
-        // 8. Kirim Hasil Lengkap Naskah & Storyboard ke WhatsApp
-        await sendWaReply(generatedScript);
+        // 8. Cek & Kirim Otomatis ke n8n jika Toggle ON
+        let n8nSuccess = false;
+        const isAutoForward = (activeMember && activeMember.n8n_auto_forward === true) || 
+                              process.env.N8N_AUTO_FORWARD === 'true';
+        const targetN8nUrl = (activeMember && activeMember.n8n_webhook_url) || 
+                             process.env.N8N_WEBHOOK_URL || 
+                             'https://n8n-zjopjxvznwqr.jkt2.sumopod.my.id/webhook/whatsapp-dispatch';
+
+        if (isAutoForward && targetN8nUrl) {
+            try {
+                const n8nPayload = {
+                    event: 'wa_video_concept_created',
+                    source: 'TRENDORA AI WhatsApp Bot',
+                    user_id: activeMember.id,
+                    sender_number: senderPhone,
+                    sender_name: activeMember.full_name || sender_name || 'Member',
+                    prompt: userPrompt,
+                    concept_script: generatedScript,
+                    timestamp: new Date().toISOString()
+                };
+                const n8nResp = await fetch(targetN8nUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(n8nPayload)
+                });
+                n8nSuccess = n8nResp.ok;
+                console.log(`[WA-WEBHOOK] Auto-forward ke n8n (${targetN8nUrl}): status ${n8nResp.status}`);
+            } catch (n8nErr) {
+                console.warn('[WA-WEBHOOK] Gagal auto-forward ke n8n:', n8nErr.message);
+            }
+        }
+
+        // 9. Kirim Hasil Lengkap Naskah & Storyboard ke WhatsApp
+        let finalReply = generatedScript;
+        if (n8nSuccess) {
+            finalReply += '\n\n⚡ _Konsep video berhasil diteruskan otomatis ke workflow n8n Anda._';
+        }
+        await sendWaReply(finalReply);
 
         const executionDuration = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`[WA-WEBHOOK] Selesai memproses naskah untuk ${activeMember.full_name} dalam ${executionDuration} detik.`);
