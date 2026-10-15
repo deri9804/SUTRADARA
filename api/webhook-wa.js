@@ -22,6 +22,73 @@ function normalizePhone(phoneStr) {
     return cleaned;
 }
 
+// Helper deteksi pilihan jenis storyboard (Iklan, Konten Kreatif, Animasi)
+function detectStoryboardMode(text) {
+    const raw = String(text || '').trim();
+    const lower = raw.toLowerCase();
+
+    // 1. Awalan Eksplisit (Prefix / Nomor)
+    // Mode 1: Video Iklan (Commercial)
+    if (/^(iklan|ads|commercial|jual|promo)[:\.\s]/i.test(raw) || /^1[:\.\s]/.test(raw)) {
+        const clean = raw.replace(/^(iklan|ads|commercial|jual|promo|1)[:\.\s]*/i, '').trim();
+        return {
+            mode: 'commercial',
+            name: 'Video Iklan & Promosi',
+            badge: '📢 *[MODE: VIDEO IKLAN & PROMOSI]*',
+            prompt: clean || raw
+        };
+    }
+
+    // Mode 2: Video Animasi (Animation)
+    if (/^(animasi|anime|animation|kartun|3d|pixar)[:\.\s]/i.test(raw) || /^3[:\.\s]/.test(raw)) {
+        const clean = raw.replace(/^(animasi|anime|animation|kartun|3d|pixar|3)[:\.\s]*/i, '').trim();
+        return {
+            mode: 'animation',
+            name: 'Video Animasi & Fantasi',
+            badge: '✨ *[MODE: VIDEO ANIMASI & FANTASI]*',
+            prompt: clean || raw
+        };
+    }
+
+    // Mode 3: Konten Kreatif (Storytelling, Drama, Komedi, POV)
+    if (/^(kreatif|cerita|drama|creative|story|konten|film|narasi)[:\.\s]/i.test(raw) || /^2[:\.\s]/.test(raw)) {
+        const clean = raw.replace(/^(kreatif|cerita|drama|creative|story|konten|film|narasi|2)[:\.\s]*/i, '').trim();
+        return {
+            mode: 'drama',
+            name: 'Konten Kreatif & Storytelling',
+            badge: '🎭 *[MODE: KONTEN KREATIF & STORYTELLING]*',
+            prompt: clean || raw
+        };
+    }
+
+    // 2. Deteksi Cerdas Berdasarkan Kata Kunci (Jika Tanpa Awalan)
+    if (/\b(jual|promo|diskon|harga|produk|order|beli|brand|toko|shopee|tokopedia|khasiat|manfaat|skincare|serum|fashion|boba|kopi)\b/i.test(lower)) {
+        return {
+            mode: 'commercial',
+            name: 'Video Iklan & Promosi',
+            badge: '📢 *[MODE: VIDEO IKLAN & PROMOSI]*',
+            prompt: raw
+        };
+    }
+
+    if (/\b(kartun|animasi|anime|pixar|disney|3d cartoon|hewan bicara|monster|robot kecil|planet alien|sihir|fantasi)\b/i.test(lower)) {
+        return {
+            mode: 'animation',
+            name: 'Video Animasi & Fantasi',
+            badge: '✨ *[MODE: VIDEO ANIMASI & FANTASI]*',
+            prompt: raw
+        };
+    }
+
+    // Default: Konten Kreatif
+    return {
+        mode: 'drama',
+        name: 'Konten Kreatif & Storytelling',
+        badge: '🎭 *[MODE: KONTEN KREATIF & STORYTELLING]*',
+        prompt: raw
+    };
+}
+
 module.exports = async function handler(req, res) {
     // 1. Health check & Method Guard
     if (req.method === 'GET') {
@@ -160,33 +227,36 @@ module.exports = async function handler(req, res) {
 
         // 3. Command Bantuan / Menu (Untuk Member Terdaftar)
         const lowerPrompt = userPrompt.toLowerCase();
-        if (['menu', 'help', 'bantuan', 'start', 'halo', 'hi'].includes(lowerPrompt)) {
+        if (['menu', 'help', 'bantuan', 'start', 'halo', 'hi', 'mode', 'pilih', 'storyboard'].includes(lowerPrompt)) {
             const memberName = activeMember.full_name || 'Member';
             const menuText = 
-`🎬 *TRENDORA AI - DIRECTOR BOT* 🎬
-_Halo Kak ${memberName}! Asisten Sutradara AI Anda siap membantu._
+`🎬 *TRENDORA AI - DIRECTOR ENGINE* 🎬
+_Halo Kak ${memberName}! Pilih jenis Storyboard yang ingin Anda buat:_
 
-Kirimkan ide video Anda, AI akan otomatis membuatkan naskah, hook 3 detik, adegan visual, dan prompt AI lengkap!
+1️⃣ *Video Iklan* (\`iklan\`)
+   🎯 _Fokus jualan produk/jasa, penahan scroll, demo solusi, & CTA konversi beli._
+   👉 *Cara Kirim:* \`iklan: [ide produk/jasa Anda]\`
+   _Contoh: \`iklan: Kopi susu gula aren botolan untuk lembur malam\`_
 
-📌 *Contoh Format Perintah:*
-1️⃣ *Video Iklan:*
-_\"iklan: Minuman Boba Brown Sugar - Anak muda/Gen Z - Segar, manis pas, promo beli 1 gratis 1\"_
+2️⃣ *Konten Kreatif* (\`kreatif\` atau \`cerita\`)
+   🎭 _Fokus storytelling, drama, komedi, horor, POV, & video edukasi viral._
+   👉 *Cara Kirim:* \`kreatif: [ide cerita Anda]\`
+   _Contoh: \`kreatif: Drama driver ojol menemukan dompet berisi surat rahasia\`_
 
-2️⃣ *Video Cerita / Drama:*
-_\"cerita: Seorang ayah rela lembur demi membelikan laptop impian anaknya\"_
+3️⃣ *Video Animasi* (\`animasi\`)
+   ✨ _Fokus dunia fantasi, karakter 3D kartun/anime unik, & aksi imajinatif._
+   👉 *Cara Kirim:* \`animasi: [ide animasi Anda]\`
+   _Contoh: \`animasi: Petualangan robot kecil mencari bintang jatuh di hutan ajaib\`_
 
-3️⃣ *Video Animasi:*
-_\"animasi: Robot kecil yang tersesat di hutan ajaib mencari baterai energi\"_
+💡 *Tips Cepat:*
+Anda bisa langsung mengetik \`iklan: ...\`, \`kreatif: ...\`, atau \`animasi: ...\`!
 
-4️⃣ *Ketik Bebas (Natural):*
-_\"Buatkan naskah reels 30 detik untuk jualan hijab anti kusut\"_
-
-⚡ *Perintah Integrasi n8n:*
+⚡ *Integrasi n8n:*
 • \`n8n on\` : Aktifkan otomatis kirim hasil video ke n8n
 • \`n8n off\` : Matikan otomatis kirim ke n8n
 • \`n8n status\` : Cek status integrasi n8n saat ini
 
-Silakan ketik ide video Anda sekarang! 🚀`;
+Silakan kirimkan ide video Anda sekarang! 🚀`;
 
             await sendWaReply(menuText);
             return res.status(200).json({ status: 'menu_sent' });
@@ -271,17 +341,64 @@ Setelah disimpan di web, bot WhatsApp ini otomatis aktif dan siap membuatkan nas
             return res.status(200).json({ status: 'no_gemini_key_prompted' });
         }
 
-        // 5. Kirim Notifikasi Tunggu
-        await sendWaReply(`⏳ *TRENDORA AI sedang merancang konsep video untuk Anda...*\n\n_"${userPrompt.slice(0, 100)}${userPrompt.length > 100 ? '...' : ''}"_\n\nEstimasi proses 5-10 detik. Tunggu sebentar ya kak! 🎬`);
+        // 5. Deteksi Jenis Storyboard (Video Iklan, Konten Kreatif, atau Animasi)
+        const detected = detectStoryboardMode(userPrompt);
+
+        // Kirim Notifikasi Tunggu dengan Badge Mode Terpilih
+        await sendWaReply(`⏳ *TRENDORA AI sedang merancang ${detected.name}...*\n\n${detected.badge}\n_"${detected.prompt.slice(0, 90)}${detected.prompt.length > 90 ? '...' : ''}"_\n\nEstimasi proses 5-10 detik. Tunggu sebentar ya kak! 🎬`);
+
+        // Panduan Spesifik Sesuai Pilihan Mode
+        let modeGuidelines = '';
+        if (detected.mode === 'commercial') {
+            modeGuidelines = 
+`JENIS STORYBOARD: VIDEO IKLAN & PROMOSI (COMMERCIAL & SALES)
+Formula Wajib Sutradara:
+• Fokus Utama: Formula AIDA / PAS untuk konversi penjualan produk/jasa.
+• Hook 3 Detik: Problem hook yang relate dengan calon pembeli / visual masalah yang mengejutkan.
+• Adegan 1 (Hook & Masalah): Tampilkan rasa frustrasi atau masalah audiens tanpa produk ini.
+• Adegan 2 (Agitasi & Solusi): Hadirkan produk ini sebagai penyelamat dan solusi nyata.
+• Adegan 3 (Demo & Benefit): Tampilkan demo keunggulan produk dan hasil memuaskan.
+• Adegan 4 (Penawaran & CTA Kuat): Berikan kalimat ajakan beli sekarang / promo terbatas / klik link bio.
+• 🎨 AI Image Prompt: High-end commercial product photography, studio softbox lighting, 8k resolution, crisp product detail, photorealistic.
+• 🎥 Video Motion: Smooth dolly zoom, dynamic macro product rotation, aesthetic commercial camera glide.`;
+        } else if (detected.mode === 'animation') {
+            modeGuidelines = 
+`JENIS STORYBOARD: VIDEO ANIMASI & FANTASI (3D ANIMATION & ANIME)
+Formula Wajib Sutradara:
+• Fokus Utama: Dunia imajinasi penuh warna, karakter kartun/3D unik dan menggemaskan/keren, aksi visual kaya ekspresi (exaggeration).
+• Hook 3 Detik: Visual aksi magis atau tingkah lucu karakter animasi yang langsung mencuri perhatian.
+• Adegan 1 (Intro Karakter & Dunia): Tampilkan dunia animasi yang memukau dan keunikan fisik/karakter tokoh utama.
+• Adegan 2 (Petualangan & Rintangan): Aksi kartun dinamis, tantangan ajaib, atau momen komedi visual yang seru.
+• Adegan 3 (Puncak Aksi / Keajaiban): Momen klimaks kekuatan sihir, penemuan ajaib, atau pertempuran animasi spektakuler.
+• Adegan 4 (Resolusi & Ending Ajaib): Penutup cerita yang ceria, penuh kehangatan, atau twist kartun yang menyenangkan.
+• 🎨 AI Image Prompt: 3D Pixar Animation style, Disney render, Unreal Engine 5 cartoon, vibrant saturated colors, soft rim lighting, expressive face, 8k.
+• 🎥 Video Motion: Fast dynamic swooping camera, bouncy character animation motion, magical floating particle effects.`;
+        } else {
+            modeGuidelines = 
+`JENIS STORYBOARD: KONTEN KREATIF & STORYTELLING (DRAMA, KOMEDI, HOROR, POV)
+Formula Wajib Sutradara:
+• Fokus Utama: Narrative Arc emosional, karakter mendalam, percakapan dialog kuat, tensi cerita, dan plot twist yang tidak terduga.
+• Hook 3 Detik: Potongan adegan puncak atau kalimat pembuka emosional yang bikin penonton penasaran tidak mau skip.
+• Adegan 1 (Setup & Hook): Pengenalan situasi dan premis cerita yang memancing rasa ingin tahu.
+• Adegan 2 (Eskalasi Konflik): Masalah semakin memuncak, ada ketegangan, perdebatan, atau situasi komedi/horor yang intens.
+• Adegan 3 (Plot Twist & Klimaks): Momen mengejutkan yang membalikkan ekspektasi penonton, atau momen emosional puncak.
+• Adegan 4 (Resolusi & Ending Berkesan): Penutup yang menyentuh hati, pesan moral mendalam, atau ending menggantung yang memicu komentar.
+• 🎨 AI Image Prompt: Cinematic movie still, 35mm lens, atmospheric moody lighting, realistic emotional character expression, shallow depth of field.
+• 🎥 Video Motion: Handheld cinematic camera movement, slow push-in on actor face, dramatic whip pan.`;
+        }
 
         // 6. Generate Konsep & Naskah Video via Gemini AI
         const systemPrompt = 
 `Anda adalah "Pak Sutradara" (AI Creative & Video Director dari TRENDORA AI).
-Tugas Anda adalah mengubah ide singkat dari pengguna WhatsApp menjadi cetak biru (blueprint) naskah dan konsep video yang siap diproduksi.
+Tugas Anda adalah merancang naskah dan cetak biru (blueprint) video berkualitas tinggi berdasarkan instruksi mode berikut:
+
+${modeGuidelines}
 
 Gaya Bahasa: Profesional, kreatif, berenergi tinggi, menggunakan format WhatsApp yang bersih dan rapi (*bold*, _italic_, bullet points, emoji).
 
 Format Balasan WA Wajib:
+${detected.badge}
+
 🎬 *PROYEK: [JUDUL VIDEO MENARIK]*
 ⏱️ *Estimasi Durasi:* [Misal: 15-30 Detik] | *Format:* [9:16 Vertikal (Reels/TikTok/Shorts)]
 🎯 *Target Audiens:* [Target spesifik]
@@ -294,7 +411,7 @@ Format Balasan WA Wajib:
 *🎬 ADEGAN 1 (Hook / Pembuka)*
 • Visual: [Deskripsi visual kamera, sudut, objek, suasana]
 • Dialog / Audio: "[Suara narasi atau percakapan]"
-• 🎨 AI Image Prompt: [Prompt bahasa Inggris sinematik untuk generate gambar di Midjourney/Gemini/Flux]
+• 🎨 AI Image Prompt: [Prompt bahasa Inggris sinematik untuk Midjourney/Gemini/Flux]
 • 🎥 Video Motion: [Instruksi gerakan kamera untuk Runway/Luma/Kling]
 
 *🎬 ADEGAN 2 (Problem / Konflik)*
