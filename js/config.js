@@ -167,43 +167,35 @@ async function testGeminiApiKeyConnection() {
         btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Mengetes...';
     }
     try {
-        const testModels = ['gemini-2.0-flash', 'gemini-1.5-flash'];
-        let success = false;
-        let lastErrMsg = '';
+        // 1. Validasi API Key langsung ke Google ModelService (ListModels)
+        const listUrl = 'https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(key);
+        const listResp = await fetch(listUrl);
+        const listData = await listResp.json().catch(() => ({}));
 
-        for (const model of testModels) {
-            try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=` + encodeURIComponent(key);
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] })
-                });
-                const data = await res.json();
-                if (res.ok && data.candidates) {
-                    success = true;
-                    break;
-                } else if (data && data.error) {
-                    lastErrMsg = data.error.message;
-                    if (data.error.code === 400 && data.error.message.includes('API key not valid')) {
-                        break;
-                    }
-                }
-            } catch (innerErr) {
-                lastErrMsg = innerErr.message;
-            }
-        }
-
-        if (success) {
-            if (notice) {
-                notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/10 border-emerald-500/20 block';
-                notice.textContent = '✅ API Key Valid! Koneksi ke Google Gemini AI berhasil.';
-            }
-        } else {
+        if (!listResp.ok) {
+            const errDetail = (listData && listData.error && listData.error.message) ? listData.error.message : ('HTTP ' + listResp.status);
             if (notice) {
                 notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
-                notice.textContent = '❌ API Key Ditolak: ' + (lastErrMsg || 'Gagal memvalidasi API Key.');
+                notice.textContent = '❌ API Key Ditolak: ' + errDetail;
             }
+            return;
+        }
+
+        // 2. Ambil model yang aktif dan didukung untuk generateContent di akun ini
+        const modelsList = Array.isArray(listData.models) ? listData.models : [];
+        const supportedModelObj = modelsList.find(m => 
+            Array.isArray(m.supportedGenerationMethods) && 
+            m.supportedGenerationMethods.includes('generateContent') &&
+            (m.name.includes('flash') || m.name.includes('gemini'))
+        );
+        const targetModel = supportedModelObj ? supportedModelObj.name.replace(/^models\//, '') : 'gemini-2.0-flash';
+
+        // Simpan model aktif yang terverifikasi ke localStorage
+        localStorage.setItem('trendora_detected_gemini_model', targetModel);
+
+        if (notice) {
+            notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/10 border-emerald-500/20 block';
+            notice.textContent = `✅ API Key Valid! Terhubung ke Google Gemini AI (Model: ${targetModel}).`;
         }
     } catch (err) {
         if (notice) {

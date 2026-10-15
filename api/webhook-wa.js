@@ -706,8 +706,6 @@ ${imagePart ? `\n📸 *REFERENSI VISUAL TERKUNCI (LOCK):*\n• Objek Terdeteksi:
 ---
 ✨ _Dirancang otomatis oleh TRENDORA AI Director Engine_`;
 
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${memberGeminiKey}`;
-
         const contentsParts = [
             { text: systemPrompt },
             { text: `Ide Konten dari WhatsApp:\n"${userPrompt}"` }
@@ -724,27 +722,60 @@ Foto referensi di atas adalah panduan visual nyata (Karakter / Produk / Lokasi).
             });
         }
 
-        const geminiResp = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        role: 'user',
-                        parts: contentsParts
-                    }
-                ],
-                generationConfig: {
-                    temperature: 0.7,
-                    maxOutputTokens: 3000
-                }
-            })
-        });
+        const candidateModels = [
+            'gemini-2.0-flash',
+            'gemini-2.5-flash-preview',
+            'gemini-2.5-flash',
+            'gemini-3-flash-preview',
+            'gemini-2.0-flash-lite'
+        ];
 
-        if (!geminiResp.ok) {
-            const errText = await geminiResp.text().catch(() => '');
-            console.error('[WA-WEBHOOK] Gemini API Error:', geminiResp.status, errText);
-            await sendWaReply(`❌ Maaf kak, terjadi kendala saat memproses naskah (${geminiResp.status}). Silakan coba beberapa saat lagi.`);
+        let geminiResp = null;
+        let lastGeminiErr = '';
+
+        for (const modelName of candidateModels) {
+            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${memberGeminiKey}`;
+            try {
+                const resp = await fetch(geminiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                role: 'user',
+                                parts: contentsParts
+                            }
+                        ],
+                        generationConfig: {
+                            temperature: 0.7,
+                            maxOutputTokens: 3000
+                        }
+                    })
+                });
+
+                if (resp.ok) {
+                    geminiResp = resp;
+                    console.log(`[WA-WEBHOOK] Sukses generate naskah dengan model: ${modelName}`);
+                    break;
+                } else {
+                    lastGeminiErr = await resp.text().catch(() => '');
+                    console.warn(`[WA-WEBHOOK] Model ${modelName} gagal (${resp.status}): ${lastGeminiErr.slice(0, 100)}`);
+                    if (resp.status === 404 || lastGeminiErr.includes('not found') || lastGeminiErr.includes('not supported')) {
+                        continue;
+                    } else {
+                        geminiResp = resp;
+                        break;
+                    }
+                }
+            } catch (fetchErr) {
+                lastGeminiErr = fetchErr.message;
+            }
+        }
+
+        if (!geminiResp || !geminiResp.ok) {
+            const errText = lastGeminiErr || (geminiResp ? await geminiResp.text().catch(() => '') : 'Unknown failure');
+            console.error('[WA-WEBHOOK] Gemini API Error:', geminiResp ? geminiResp.status : 500, errText);
+            await sendWaReply(`❌ Maaf kak, terjadi kendala saat memproses naskah (${geminiResp ? geminiResp.status : 'API'}). Silakan coba beberapa saat lagi.`);
             return res.status(200).json({ error: 'Gemini API Failure', detail: errText });
         }
 
