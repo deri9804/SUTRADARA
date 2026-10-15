@@ -167,23 +167,42 @@ async function testGeminiApiKeyConnection() {
         btn.innerHTML = '<i class="fa-solid fa-spinner animate-spin"></i> Mengetes...';
     }
     try {
-        const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + encodeURIComponent(key);
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] })
-        });
-        const data = await res.json();
-        if (res.ok && data.candidates) {
+        const testModels = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+        let success = false;
+        let lastErrMsg = '';
+
+        for (const model of testModels) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=` + encodeURIComponent(key);
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: 'ping' }] }] })
+                });
+                const data = await res.json();
+                if (res.ok && data.candidates) {
+                    success = true;
+                    break;
+                } else if (data && data.error) {
+                    lastErrMsg = data.error.message;
+                    if (data.error.code === 400 && data.error.message.includes('API key not valid')) {
+                        break;
+                    }
+                }
+            } catch (innerErr) {
+                lastErrMsg = innerErr.message;
+            }
+        }
+
+        if (success) {
             if (notice) {
                 notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/10 border-emerald-500/20 block';
                 notice.textContent = '✅ API Key Valid! Koneksi ke Google Gemini AI berhasil.';
             }
         } else {
-            const errMsg = (data && data.error && data.error.message) ? data.error.message : 'HTTP ' + res.status;
             if (notice) {
                 notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-400 bg-red-500/10 border-red-500/20 block';
-                notice.textContent = '❌ API Key Ditolak: ' + errMsg;
+                notice.textContent = '❌ API Key Ditolak: ' + (lastErrMsg || 'Gagal memvalidasi API Key.');
             }
         }
     } catch (err) {
