@@ -597,7 +597,7 @@ function openWaBotModal() {
     // Set Webhook URL dynamically from origin
     const input = document.getElementById('inputWaWebhookUrl');
     if (input) {
-        const origin = (window.location && window.location.origin) ? window.location.origin : 'https://trendora.vercel.app';
+        const origin = (window.location && window.location.origin) ? window.location.origin : 'https://sutradara-swart.vercel.app';
         input.value = `${origin}/api/webhook-wa`;
     }
 

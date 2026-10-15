@@ -262,7 +262,7 @@ Silakan ketik ide video Anda sekarang! 🚀`;
 Google Gemini API Key belum terpasang di akun Trendora AI Anda.
 
 *Cara Aktivasi Sangat Cepat & Mudah:*
-1️⃣ Buka web: https://trendora.vercel.app
+1️⃣ Buka web: https://sutradara-swart.vercel.app
 2️⃣ Klik menu *Gemini Key* (di pojok kanan atas)
 3️⃣ Masukkan API Key Anda (Gratis dari Google AI Studio) lalu klik *Simpan*.
 
