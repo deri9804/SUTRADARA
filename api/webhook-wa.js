@@ -89,6 +89,125 @@ function detectStoryboardMode(text) {
     };
 }
 
+// In-Memory User Storyboard Settings Cache (per sender phone)
+const userSettingsStore = new Map();
+
+function getUserSettings(phone) {
+    const key = normalizePhone(phone);
+    if (!userSettingsStore.has(key)) {
+        userSettingsStore.set(key, {
+            sceneCount: 2,
+            shotsPerScene: 4,
+            durationPerScene: '10s',
+            aspectRatio: '9:16',
+            audioMode: 'Auto Director (Kontekstual)',
+            language: 'Bahasa Indonesia (Gen Z)'
+        });
+    }
+    return Object.assign({}, userSettingsStore.get(key));
+}
+
+function updateUserSettings(phone, updates) {
+    const key = normalizePhone(phone);
+    const curr = getUserSettings(key);
+    const updated = Object.assign(curr, updates);
+    userSettingsStore.set(key, updated);
+    return updated;
+}
+
+function formatSettingsMessage(settings, memberName = 'Kak') {
+    const ratioLabel = settings.aspectRatio === '9:16' 
+        ? '9:16 [Vertikal Reels / TikTok / Shorts]' 
+        : settings.aspectRatio === '16:9' 
+            ? '16:9 [Landscape YouTube / TV]' 
+            : '1:1 [Square Feed Instagram]';
+
+    return `⚙️ *TRENDORA AI - STORYBOARD SETTINGS* ⚙️
+_Halo Kak ${memberName}! Pengaturan Storyboard aktif Anda saat ini:_
+
+🎬 *Jumlah Adegan:* ${settings.sceneCount} Adegan (Pilihan: 1 - 6)
+🎞️ *Shot per Adegan:* ${settings.shotsPerScene} Shot (Pilihan: 1 - 6)
+⏱️ *Durasi per Adegan:* ${settings.durationPerScene} (Pilihan: 5s, 8s, 10s, 15s, 30s)
+📐 *Aspect Ratio:* ${ratioLabel}
+🎙️ *Mode Audio:* ${settings.audioMode}
+🌐 *Bahasa Naskah:* ${settings.language}
+
+━━━━━━━━━━━━━━━━━━━━
+📝 *CARA MENGUBAH PENGATURAN:*
+• \`set adegan 3\` ➡️ Ubah jumlah adegan (1 - 6)
+• \`set durasi 15s\` ➡️ Ubah durasi adegan (5s, 8s, 10s, 15s, 30s)
+• \`set ratio 16:9\` ➡️ Format landscape YouTube (9:16 / 16:9 / 1:1)
+• \`set shot 5\` ➡️ Ubah shot per adegan
+• \`set bahasa formal\` ➡️ Ubah bahasa (formal / gen z / inggris / jawa / sunda)
+• \`set voice dialog\` ➡️ Ubah mode suara (dialog / narasi / auto)
+
+💡 *Tips Cepat:*
+Anda juga bisa langsung mengetik setting saat kirim ide, contoh:
+\`iklan: Kopi aren botolan, 3 adegan, durasi 15s, ratio 16:9, bahasa formal\`
+
+📸 *Kirim Foto Referensi:*
+Kirim foto produk / karakter / lokasi langsung dengan caption di atas! 🚀`;
+}
+
+function parseStoryboardSettings(text, baseSettings) {
+    const raw = String(text || '');
+    const lower = raw.toLowerCase();
+    const settings = Object.assign({}, baseSettings);
+
+    // 1. Adegan (1 - 6)
+    const sceneMatch = raw.match(/(?:--adegan[=:\s]+|adegan[:\s]+|\b)([1-6])\s*(?:adegan|scene|scenes)?/i);
+    if (sceneMatch) {
+        const num = parseInt(sceneMatch[1], 10);
+        if (num >= 1 && num <= 6) settings.sceneCount = num;
+    }
+
+    // 2. Shot per Adegan (1 - 6)
+    const shotMatch = raw.match(/(?:--shot[=:\s]+|shot[:\s]+|\b)([1-6])\s*(?:shot|shots)/i);
+    if (shotMatch) {
+        const num = parseInt(shotMatch[1], 10);
+        if (num >= 1 && num <= 6) settings.shotsPerScene = num;
+    }
+
+    // 3. Durasi per Adegan (5s, 8s, 10s, 15s, 30s)
+    const durMatch = raw.match(/(?:--durasi[=:\s]+|durasi[:\s]+|\b)(5|8|10|15|30)\s*(?:s|detik|sec|second)/i);
+    if (durMatch) {
+        settings.durationPerScene = `${durMatch[1]}s`;
+    }
+
+    // 4. Aspect Ratio (9:16, 16:9, 1:1)
+    if (/\b(16:9|landscape|horizontal|youtube)\b/i.test(lower)) {
+        settings.aspectRatio = '16:9';
+    } else if (/\b(1:1|square|kotak|feed)\b/i.test(lower)) {
+        settings.aspectRatio = '1:1';
+    } else if (/\b(9:16|vertikal|vertical|reels|tiktok|shorts)\b/i.test(lower)) {
+        settings.aspectRatio = '9:16';
+    }
+
+    // 5. Bahasa Konten
+    if (/\b(bahasa\s+)?(formal|resmi|bisnis|profesional)\b/i.test(lower)) {
+        settings.language = 'Bahasa Indonesia (Formal & Bisnis)';
+    } else if (/\b(bahasa\s+)?(inggris|english)\b/i.test(lower)) {
+        settings.language = 'English (International)';
+    } else if (/\b(bahasa\s+)?(jawa)\b/i.test(lower)) {
+        settings.language = 'Bahasa Jawa';
+    } else if (/\b(bahasa\s+)?(sunda)\b/i.test(lower)) {
+        settings.language = 'Bahasa Sunda';
+    } else if (/\b(bahasa\s+)?(gen z|santai|gaul|slang)\b/i.test(lower)) {
+        settings.language = 'Bahasa Indonesia (Gen Z)';
+    }
+
+    // 6. Mode Audio
+    if (/\b(dialog|percakapan)\b/i.test(lower) && !/\b(tanpa dialog)\b/i.test(lower)) {
+        settings.audioMode = 'Percakapan Dialog Tokoh';
+    } else if (/\b(voiceover|narasi|voice over|vo)\b/i.test(lower)) {
+        settings.audioMode = 'Voiceover Narasi Penuh';
+    } else if (/\b(tanpa suara|no voice|instrumental|musik saja)\b/i.test(lower)) {
+        settings.audioMode = 'Sound FX & BGM Only';
+    }
+
+    return settings;
+}
+
 module.exports = async function handler(req, res) {
     // 1. Health check & Method Guard
     if (req.method === 'GET') {
@@ -114,20 +233,33 @@ module.exports = async function handler(req, res) {
             phone_number,
             sender_name,
             message,
-            is_group
+            is_group,
+            media_url,
+            media_type,
+            caption
         } = body;
 
         // Ambil nomor pengirim riil & normalisasi
         const rawPhone = (sender_number || phone_number || '').replace(/[^0-9]/g, '');
         const senderPhone = normalizePhone(rawPhone);
-        const userPrompt = (message || '').trim();
         const activeSessionKey = String(session_key || process.env.TRENDORA_WA_SESSION || '1');
 
-        console.log(`[WA-WEBHOOK] Pesan masuk dari ${senderPhone} (${sender_name}): "${userPrompt.slice(0, 50)}..."`);
+        // Ekstraksi Media Referensi (Foto Produk, Karakter, Lokasi)
+        const rawMediaUrl = (media_url || body.file_url || body.url || '').trim();
+        const rawMediaType = (media_type || body.type || '').toUpperCase();
+        const rawCaption = (caption || '').trim();
 
-        // Abaikan pesan kosong atau pesan grup
-        if (!userPrompt || !senderPhone) {
-            return res.status(200).json({ status: 'ignored', reason: 'Empty message or phone' });
+        // Normalisasi teks prompt (jika user kirim foto dengan caption)
+        let userPrompt = (message || rawCaption || '').trim();
+        if (userPrompt === '[IMAGE]' || userPrompt === '[MEDIA]') {
+            userPrompt = rawCaption;
+        }
+
+        console.log(`[WA-WEBHOOK] Pesan masuk dari ${senderPhone} (${sender_name}): "${userPrompt.slice(0, 50)}..." | Media: ${rawMediaUrl || 'None'}`);
+
+        // Abaikan jika tidak ada nomor pengirim atau pesan dari grup
+        if (!senderPhone) {
+            return res.status(200).json({ status: 'ignored', reason: 'Empty phone' });
         }
 
         if (is_group) {
@@ -225,38 +357,58 @@ module.exports = async function handler(req, res) {
             return res.status(200).json({ status: 'ignored_non_member' });
         }
 
+        // Jika user hanya mengirim foto referensi tanpa caption/teks ide
+        if (rawMediaUrl && !userPrompt) {
+            await sendWaReply(
+                `📸 *FOTO REFERENSI VISUAL BERHASIL DITERIMA!* 🎬\n\n` +
+                `Foto referensi Anda sudah masuk ke sistem AI Sutradara.\n` +
+                `Sekarang silakan balas chat ini dengan ide video yang ingin dibuat:\n\n` +
+                `👉 *Contoh:* \`iklan: Promosikan produk di foto ini, diskon 30%\`\n` +
+                `👉 *Contoh:* \`karakter: Pria di foto ini jadi agen rahasia beraksi di atap gedung\`\n` +
+                `👉 *Contoh:* \`lokasi: Suasana cafe aesthetic di foto ini, durasi 15s\`\n\n` +
+                `_💡 Tips: Anda juga bisa langsung mengetik ide di Caption saat mengirim foto!_`
+            );
+            return res.status(200).json({ status: 'image_received_prompt_needed' });
+        }
+
+        // Jika tidak ada prompt teks sama sekali
+        if (!userPrompt) {
+            return res.status(200).json({ status: 'ignored', reason: 'Empty prompt' });
+        }
+
         // 3. Command Bantuan / Menu (Untuk Member Terdaftar)
         const lowerPrompt = userPrompt.toLowerCase();
         if (['menu', 'help', 'bantuan', 'start', 'halo', 'hi', 'mode', 'pilih', 'storyboard'].includes(lowerPrompt)) {
             const memberName = activeMember.full_name || 'Member';
             const menuText = 
 `🎬 *TRENDORA AI - DIRECTOR ENGINE* 🎬
-_Halo Kak ${memberName}! Pilih jenis Storyboard yang ingin Anda buat:_
+_Halo Kak ${memberName}! Asisten Sutradara AI siap memproduksi Storyboard:_
 
+📌 *PILIH JENIS STORYBOARD:*
 1️⃣ *Video Iklan* (\`iklan\`)
-   🎯 _Fokus jualan produk/jasa, penahan scroll, demo solusi, & CTA konversi beli._
-   👉 *Cara Kirim:* \`iklan: [ide produk/jasa Anda]\`
-   _Contoh: \`iklan: Kopi susu gula aren botolan untuk lembur malam\`_
+   🎯 _Fokus jualan produk/jasa, penahan scroll, demo solusi, & CTA beli._
+   👉 *Cara:* \`iklan: [ide produk/jasa Anda]\`
 
 2️⃣ *Konten Kreatif* (\`kreatif\` atau \`cerita\`)
    🎭 _Fokus storytelling, drama, komedi, horor, POV, & video edukasi viral._
-   👉 *Cara Kirim:* \`kreatif: [ide cerita Anda]\`
-   _Contoh: \`kreatif: Drama driver ojol menemukan dompet berisi surat rahasia\`_
+   👉 *Cara:* \`kreatif: [ide cerita Anda]\`
 
 3️⃣ *Video Animasi* (\`animasi\`)
    ✨ _Fokus dunia fantasi, karakter 3D kartun/anime unik, & aksi imajinatif._
-   👉 *Cara Kirim:* \`animasi: [ide animasi Anda]\`
-   _Contoh: \`animasi: Petualangan robot kecil mencari bintang jatuh di hutan ajaib\`_
+   👉 *Cara:* \`animasi: [ide animasi Anda]\`
 
-💡 *Tips Cepat:*
-Anda bisa langsung mengetik \`iklan: ...\`, \`kreatif: ...\`, atau \`animasi: ...\`!
+📸 *FOTO REFERENSI VISUAL (PRODUK / KARAKTER / LOKASI):*
+Kirim foto produk, karakter/model, atau foto lokasi langsung di WhatsApp ini dengan Caption ide video Anda! AI akan memindai objek foto dan mengunci detailnya di setiap adegan!
+
+⚙️ *PENGATURAN STORYBOARD:*
+Ketik \`setting\` untuk cek/ubah jumlah adegan (1-6), durasi (5s-30s), aspect ratio (9:16 / 16:9 / 1:1), bahasa, dan mode audio.
 
 ⚡ *Integrasi n8n:*
 • \`n8n on\` : Aktifkan otomatis kirim hasil video ke n8n
 • \`n8n off\` : Matikan otomatis kirim ke n8n
-• \`n8n status\` : Cek status integrasi n8n saat ini
+• \`n8n status\` : Cek status integrasi n8n
 
-Silakan kirimkan ide video Anda sekarang! 🚀`;
+Silakan kirimkan ide video atau foto referensi Anda sekarang! 🚀`;
 
             await sendWaReply(menuText);
             return res.status(200).json({ status: 'menu_sent' });
@@ -320,6 +472,93 @@ Silakan kirimkan ide video Anda sekarang! 🚀`;
             return res.status(200).json({ status: 'n8n_status_checked' });
         }
 
+        // 3c. Command Cek Pengaturan Storyboard (Settings)
+        if (['setting', 'settings', 'pengaturan', 'cek setting', 'status setting', 'config'].includes(lowerPrompt)) {
+            const memberName = activeMember.full_name || 'Member';
+            const userSettings = getUserSettings(senderPhone);
+            await sendWaReply(formatSettingsMessage(userSettings, memberName));
+            return res.status(200).json({ status: 'settings_checked' });
+        }
+
+        // 3d. Command Ubah Pengaturan (Set Adegan, Durasi, Ratio, Bahasa, Voice)
+        if (/^set\s+/i.test(lowerPrompt)) {
+            let updateMade = false;
+            let updateNotice = '';
+
+            // set adegan 1-6
+            const setScene = lowerPrompt.match(/^set\s+adegan\s+([1-6])/i);
+            if (setScene) {
+                const count = parseInt(setScene[1], 10);
+                updateUserSettings(senderPhone, { sceneCount: count });
+                updateNotice = `🎬 Jumlah adegan berhasil diubah ke: *${count} Adegan*.`;
+                updateMade = true;
+            }
+
+            // set durasi 5s, 8s, 10s, 15s, 30s
+            const setDur = lowerPrompt.match(/^set\s+durasi\s+(5|8|10|15|30)\s*(s|detik)?/i);
+            if (setDur) {
+                const dur = `${setDur[1]}s`;
+                updateUserSettings(senderPhone, { durationPerScene: dur });
+                updateNotice = `⏱️ Durasi per adegan berhasil diubah ke: *${dur}*.`;
+                updateMade = true;
+            }
+
+            // set ratio 9:16, 16:9, 1:1
+            const setRatio = lowerPrompt.match(/^set\s+(?:ratio|rasio|format)\s+(9:16|16:9|1:1|vertikal|landscape|square)/i);
+            if (setRatio) {
+                const rRaw = setRatio[1].toLowerCase();
+                const ratio = (rRaw === '16:9' || rRaw === 'landscape') ? '16:9' : (rRaw === '1:1' || rRaw === 'square') ? '1:1' : '9:16';
+                updateUserSettings(senderPhone, { aspectRatio: ratio });
+                updateNotice = `📐 Aspect ratio berhasil diubah ke: *${ratio}* (${ratio === '16:9' ? 'Landscape YouTube' : ratio === '1:1' ? 'Square 1:1' : 'Vertikal Reels/TikTok'}).`;
+                updateMade = true;
+            }
+
+            // set shot 1-6
+            const setShot = lowerPrompt.match(/^set\s+shot\s+([1-6])/i);
+            if (setShot) {
+                const count = parseInt(setShot[1], 10);
+                updateUserSettings(senderPhone, { shotsPerScene: count });
+                updateNotice = `🎞️ Shot per adegan berhasil diubah ke: *${count} Shot*.`;
+                updateMade = true;
+            }
+
+            // set bahasa
+            const setBahasa = lowerPrompt.match(/^set\s+bahasa\s+(formal|resmi|bisnis|gen z|santai|inggris|english|jawa|sunda)/i);
+            if (setBahasa) {
+                const bRaw = setBahasa[1].toLowerCase();
+                let bName = 'Bahasa Indonesia (Gen Z)';
+                if (['formal', 'resmi', 'bisnis'].includes(bRaw)) bName = 'Bahasa Indonesia (Formal & Bisnis)';
+                else if (['inggris', 'english'].includes(bRaw)) bName = 'English (International)';
+                else if (bRaw === 'jawa') bName = 'Bahasa Jawa';
+                else if (bRaw === 'sunda') bName = 'Bahasa Sunda';
+                updateUserSettings(senderPhone, { language: bName });
+                updateNotice = `🌐 Gaya bahasa berhasil diubah ke: *${bName}*.`;
+                updateMade = true;
+            }
+
+            // set voice
+            const setVoice = lowerPrompt.match(/^set\s+(?:voice|audio|suara)\s+(dialog|narasi|voiceover|auto|sfx)/i);
+            if (setVoice) {
+                const vRaw = setVoice[1].toLowerCase();
+                let vName = 'Auto Director (Kontekstual)';
+                if (vRaw === 'dialog') vName = 'Percakapan Dialog Tokoh';
+                else if (['narasi', 'voiceover'].includes(vRaw)) vName = 'Voiceover Narasi Penuh';
+                else if (vRaw === 'sfx') vName = 'Sound FX & BGM Only';
+                updateUserSettings(senderPhone, { audioMode: vName });
+                updateNotice = `🎙️ Mode audio berhasil diubah ke: *${vName}*.`;
+                updateMade = true;
+            }
+
+            if (updateMade) {
+                await sendWaReply(
+                    `✅ *PENGATURAN BERHASIL DISIMPAN!* ⚙️\n\n` +
+                    `${updateNotice}\n\n` +
+                    `_Ketik \`setting\` kapan saja untuk melihat status pengaturan lengkap, atau langsung kirim ide video Anda sekarang!_ 🚀`
+                );
+                return res.status(200).json({ status: 'settings_updated' });
+            }
+        }
+
         // 4. Validasi Gemini API Key Milik Member (BYOK - Bring Your Own Key)
         const memberGeminiKey = (activeMember && activeMember.gemini_api_key && activeMember.gemini_api_key.trim()) ||
                                 (isAdmin ? (process.env.GEMINI_API_KEY || '') : '');
@@ -344,8 +583,40 @@ Setelah disimpan di web, bot WhatsApp ini otomatis aktif dan siap membuatkan nas
         // 5. Deteksi Jenis Storyboard (Video Iklan, Konten Kreatif, atau Animasi)
         const detected = detectStoryboardMode(userPrompt);
 
-        // Kirim Notifikasi Tunggu dengan Badge Mode Terpilih
-        await sendWaReply(`⏳ *TRENDORA AI sedang merancang ${detected.name}...*\n\n${detected.badge}\n_"${detected.prompt.slice(0, 90)}${detected.prompt.length > 90 ? '...' : ''}"_\n\nEstimasi proses 5-10 detik. Tunggu sebentar ya kak! 🎬`);
+        // Ambil default settings & parse parameter dinamis dari teks prompt
+        const userBaseSettings = getUserSettings(senderPhone);
+        const activeSettings = parseStoryboardSettings(userPrompt, userBaseSettings);
+
+        // Proses Foto Referensi Visual (Multimodal Vision) jika ada
+        let imagePart = null;
+        if (rawMediaUrl && (rawMediaType === 'IMAGE' || /\.(jpg|jpeg|png|webp)($|\?)/i.test(rawMediaUrl))) {
+            try {
+                console.log(`[WA-WEBHOOK] Mengunduh foto referensi visual: ${rawMediaUrl}`);
+                const imgResp = await fetch(rawMediaUrl);
+                if (imgResp.ok) {
+                    const arrayBuffer = await imgResp.arrayBuffer();
+                    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+                    const cType = imgResp.headers.get('content-type') || 'image/jpeg';
+                    const mime = cType.includes('png') ? 'image/png' : (cType.includes('webp') ? 'image/webp' : 'image/jpeg');
+                    imagePart = {
+                        inlineData: {
+                            mimeType: mime,
+                            data: base64Data
+                        }
+                    };
+                    console.log(`[WA-WEBHOOK] Sukses memproses foto referensi (${(base64Data.length / 1024).toFixed(1)} KB)`);
+                }
+            } catch (imgErr) {
+                console.warn('[WA-WEBHOOK] Gagal unduh foto referensi:', imgErr.message);
+            }
+        }
+
+        // Kirim Notifikasi Tunggu dengan Badge Mode & Info Pengaturan Terpilih
+        const waitNotice = imagePart
+            ? `⏳ *TRENDORA AI sedang memindai foto referensi & merancang ${detected.name}...*\n\n${detected.badge}\n📸 _Foto referensi visual terdeteksi & sedang dianalisis..._\n📐 _Format: ${activeSettings.aspectRatio} | ${activeSettings.sceneCount} Adegan @ ${activeSettings.durationPerScene}_\n\nEstimasi proses 8-12 detik. Tunggu sebentar ya kak! 🎬`
+            : `⏳ *TRENDORA AI sedang merancang ${detected.name}...*\n\n${detected.badge}\n📐 _Format: ${activeSettings.aspectRatio} | ${activeSettings.sceneCount} Adegan @ ${activeSettings.durationPerScene}_\n_"${detected.prompt.slice(0, 80)}${detected.prompt.length > 80 ? '...' : ''}"_\n\nEstimasi proses 5-10 detik. Tunggu sebentar ya kak! 🎬`;
+
+        await sendWaReply(waitNotice);
 
         // Panduan Spesifik Sesuai Pilihan Mode
         let modeGuidelines = '';
@@ -355,10 +626,7 @@ Setelah disimpan di web, bot WhatsApp ini otomatis aktif dan siap membuatkan nas
 Formula Wajib Sutradara:
 • Fokus Utama: Formula AIDA / PAS untuk konversi penjualan produk/jasa.
 • Hook 3 Detik: Problem hook yang relate dengan calon pembeli / visual masalah yang mengejutkan.
-• Adegan 1 (Hook & Masalah): Tampilkan rasa frustrasi atau masalah audiens tanpa produk ini.
-• Adegan 2 (Agitasi & Solusi): Hadirkan produk ini sebagai penyelamat dan solusi nyata.
-• Adegan 3 (Demo & Benefit): Tampilkan demo keunggulan produk dan hasil memuaskan.
-• Adegan 4 (Penawaran & CTA Kuat): Berikan kalimat ajakan beli sekarang / promo terbatas / klik link bio.
+• Struktur Alur: Mulai dari masalah audiens -> perkenalkan produk sebagai solusi -> demo benefit -> Call to Action (CTA) beli kuat.
 • 🎨 AI Image Prompt: High-end commercial product photography, studio softbox lighting, 8k resolution, crisp product detail, photorealistic.
 • 🎥 Video Motion: Smooth dolly zoom, dynamic macro product rotation, aesthetic commercial camera glide.`;
         } else if (detected.mode === 'animation') {
@@ -367,10 +635,7 @@ Formula Wajib Sutradara:
 Formula Wajib Sutradara:
 • Fokus Utama: Dunia imajinasi penuh warna, karakter kartun/3D unik dan menggemaskan/keren, aksi visual kaya ekspresi (exaggeration).
 • Hook 3 Detik: Visual aksi magis atau tingkah lucu karakter animasi yang langsung mencuri perhatian.
-• Adegan 1 (Intro Karakter & Dunia): Tampilkan dunia animasi yang memukau dan keunikan fisik/karakter tokoh utama.
-• Adegan 2 (Petualangan & Rintangan): Aksi kartun dinamis, tantangan ajaib, atau momen komedi visual yang seru.
-• Adegan 3 (Puncak Aksi / Keajaiban): Momen klimaks kekuatan sihir, penemuan ajaib, atau pertempuran animasi spektakuler.
-• Adegan 4 (Resolusi & Ending Ajaib): Penutup cerita yang ceria, penuh kehangatan, atau twist kartun yang menyenangkan.
+• Struktur Alur: Pengenalan karakter unik -> rintangan/petualangan ajaib -> klimaks aksi spektakuler -> resolusi hangat/ceria.
 • 🎨 AI Image Prompt: 3D Pixar Animation style, Disney render, Unreal Engine 5 cartoon, vibrant saturated colors, soft rim lighting, expressive face, 8k.
 • 🎥 Video Motion: Fast dynamic swooping camera, bouncy character animation motion, magical floating particle effects.`;
         } else {
@@ -379,20 +644,39 @@ Formula Wajib Sutradara:
 Formula Wajib Sutradara:
 • Fokus Utama: Narrative Arc emosional, karakter mendalam, percakapan dialog kuat, tensi cerita, dan plot twist yang tidak terduga.
 • Hook 3 Detik: Potongan adegan puncak atau kalimat pembuka emosional yang bikin penonton penasaran tidak mau skip.
-• Adegan 1 (Setup & Hook): Pengenalan situasi dan premis cerita yang memancing rasa ingin tahu.
-• Adegan 2 (Eskalasi Konflik): Masalah semakin memuncak, ada ketegangan, perdebatan, atau situasi komedi/horor yang intens.
-• Adegan 3 (Plot Twist & Klimaks): Momen mengejutkan yang membalikkan ekspektasi penonton, atau momen emosional puncak.
-• Adegan 4 (Resolusi & Ending Berkesan): Penutup yang menyentuh hati, pesan moral mendalam, atau ending menggantung yang memicu komentar.
+• Struktur Alur: Setup situasi -> eskalasi konflik memuncak -> plot twist mengejutkan -> penutup berkesan / moral cerita.
 • 🎨 AI Image Prompt: Cinematic movie still, 35mm lens, atmospheric moody lighting, realistic emotional character expression, shallow depth of field.
 • 🎥 Video Motion: Handheld cinematic camera movement, slow push-in on actor face, dramatic whip pan.`;
         }
 
+        // Hitung estimasi total durasi
+        const sceneSeconds = parseInt(activeSettings.durationPerScene, 10) || 10;
+        const totalDurationEstimate = sceneSeconds * activeSettings.sceneCount;
+
         // 6. Generate Konsep & Naskah Video via Gemini AI
         const systemPrompt = 
 `Anda adalah "Pak Sutradara" (AI Creative & Video Director dari TRENDORA AI).
-Tugas Anda adalah merancang naskah dan cetak biru (blueprint) video berkualitas tinggi berdasarkan instruksi mode berikut:
+Tugas Anda adalah merancang naskah dan cetak biru (blueprint) video berkualitas tinggi berdasarkan instruksi mode dan pengaturan storyboard berikut:
 
 ${modeGuidelines}
+
+PENGATURAN STORYBOARD AKTIF (WAJIB DIIKUTI):
+• Jumlah Adegan: Tepat ${activeSettings.sceneCount} Adegan (Tuliskan Adegan 1 sampai Adegan ${activeSettings.sceneCount})
+• Perkiraan Shot: Sekitar ${activeSettings.shotsPerScene} Shot per adegan
+• Durasi per Adegan: ${activeSettings.durationPerScene} (Total durasi video: ~${totalDurationEstimate} detik)
+• Format / Aspect Ratio: ${activeSettings.aspectRatio} (${activeSettings.aspectRatio === '9:16' ? 'Vertikal 9:16 - Reels/TikTok/Shorts' : activeSettings.aspectRatio === '16:9' ? 'Landscape 16:9 - YouTube/TV' : 'Square 1:1 - Feed Instagram'})
+• Gaya Bahasa Dialog & Narasi: ${activeSettings.language}
+• Mode Audio & Voice: ${activeSettings.audioMode}
+
+${imagePart ? `
+FOTO REFERENSI TERLAMPIR (MULTIMODAL VISION):
+Pengguna melampirkan foto referensi visual nyata.
+Periksa foto tersebut dengan sangat teliti:
+- Jika FOTO PRODUK: Kunci bentuk fisik, warna kemasan, label, material, dan ukuran ke dalam setiap adegan dan prompt gambar.
+- Jika FOTO KARAKTER/TALENT: Kunci wajah, rambut, gaya pakaian, dan ciri unik karakter tersebut di setiap adegan.
+- Jika FOTO LOKASI: Kunci arsitektur, elemen latar, dan suasana lighting di setiap adegan.
+Wajib sertakan bagian "📸 *REFERENSI VISUAL TERKUNCI (LOCK):*" di bagian atas naskah!
+` : ''}
 
 Gaya Bahasa: Profesional, kreatif, berenergi tinggi, menggunakan format WhatsApp yang bersih dan rapi (*bold*, _italic_, bullet points, emoji).
 
@@ -400,37 +684,21 @@ Format Balasan WA Wajib:
 ${detected.badge}
 
 🎬 *PROYEK: [JUDUL VIDEO MENARIK]*
-⏱️ *Estimasi Durasi:* [Misal: 15-30 Detik] | *Format:* [9:16 Vertikal (Reels/TikTok/Shorts)]
-🎯 *Target Audiens:* [Target spesifik]
-
+⏱️ *Durasi:* ~${totalDurationEstimate} Detik (${activeSettings.sceneCount} Adegan @ ${activeSettings.durationPerScene}) | *Format:* ${activeSettings.aspectRatio}
+🌐 *Bahasa:* ${activeSettings.language} | 🎙️ *Audio:* ${activeSettings.audioMode}
+🎯 *Target Audiens:* [Target audiens spesifik]
+${imagePart ? `\n📸 *REFERENSI VISUAL TERKUNCI (LOCK):*\n• Objek Terdeteksi: [Karakter / Produk / Lokasi]\n• Ciri Fisik Terkunci: [Deskripsi ringkas detail visual foto yang dikunci di seluruh adegan]\n` : ''}
 🔥 *HOOK 3 DETIK PERTAMA (Penahan Scroll):*
 "[Tuliskan aksi visual mengejutkan & kalimat pembuka yang kuat]"
 
-📋 *BREAKDOWN ADEGAN (STORYBOARD):*
+📋 *BREAKDOWN STORYBOARD (${activeSettings.sceneCount} ADEGAN):*
 
-*🎬 ADEGAN 1 (Hook / Pembuka)*
-• Visual: [Deskripsi visual kamera, sudut, objek, suasana]
-• Dialog / Audio: "[Suara narasi atau percakapan]"
-• 🎨 AI Image Prompt: [Prompt bahasa Inggris sinematik untuk Midjourney/Gemini/Flux]
+[Tuliskan persis ${activeSettings.sceneCount} adegan lengkap: Adegan 1 sampai Adegan ${activeSettings.sceneCount}. Untuk setiap adegan wajib menyertakan:]
+*🎬 ADEGAN [X] ([Nama Peran Adegan])*
+• Visual: [Deskripsi visual kamera, sudut, objek, suasana${imagePart ? ' - sertakan detail terkunci dari foto referensi' : ''}]
+• Dialog / Audio: "[Suara narasi atau percakapan sesuai gaya ${activeSettings.language}]"
+• 🎨 AI Image Prompt: [Prompt bahasa Inggris sinematik untuk Midjourney/Gemini/Flux${imagePart ? ' - sebutkan detail visual objek foto referensi secara konsisten' : ''}, aspect ratio --ar ${activeSettings.aspectRatio.replace(':', ':')}]
 • 🎥 Video Motion: [Instruksi gerakan kamera untuk Runway/Luma/Kling]
-
-*🎬 ADEGAN 2 (Problem / Konflik)*
-• Visual: [Deskripsi visual]
-• Dialog / Audio: "[Suara narasi / dialog]"
-• 🎨 AI Image Prompt: [Prompt bahasa Inggris]
-• 🎥 Video Motion: [Instruksi gerakan]
-
-*🎬 ADEGAN 3 (Solution / Inti Cerita)*
-• Visual: [Deskripsi visual]
-• Dialog / Audio: "[Suara narasi / dialog]"
-• 🎨 AI Image Prompt: [Prompt bahasa Inggris]
-• 🎥 Video Motion: [Instruksi gerakan]
-
-*🎬 ADEGAN 4 (Call to Action / Ending)*
-• Visual: [Deskripsi visual penutup & branding]
-• Dialog / Audio: "[Kalimat ajakan / penutup]"
-• 🎨 AI Image Prompt: [Prompt bahasa Inggris]
-• 🎥 Video Motion: [Instruksi gerakan]
 
 💡 *SARAN SUTRADARA:*
 [1-2 tips sound effect (SFX), warna lighting, atau musik latar yang cocok]
@@ -440,6 +708,22 @@ ${detected.badge}
 
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${memberGeminiKey}`;
 
+        const contentsParts = [
+            { text: systemPrompt },
+            { text: `Ide Konten dari WhatsApp:\n"${userPrompt}"` }
+        ];
+
+        if (imagePart) {
+            contentsParts.push(imagePart);
+            contentsParts.push({
+                text: `PERHATIAN MULTIMODAL VISION SUTRADARA:
+Foto referensi di atas adalah panduan visual nyata (Karakter / Produk / Lokasi).
+1. Teliti objek di foto: detail bentuk fisik, warna, label/kemasan, pakaian, wajah, atau latar arsitektur.
+2. KUNCI (LOCK) ciri fisik tersebut ke dalam setiap ADEGAN dan AI Image Prompt agar konsisten dari awal hingga akhir!
+3. Wajib sertakan bagian "📸 *REFERENSI VISUAL TERKUNCI (LOCK):*" di awal naskah.`
+            });
+        }
+
         const geminiResp = await fetch(geminiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -447,15 +731,12 @@ ${detected.badge}
                 contents: [
                     {
                         role: 'user',
-                        parts: [
-                            { text: systemPrompt },
-                            { text: `Ide Konten dari WhatsApp:\n"${userPrompt}"` }
-                        ]
+                        parts: contentsParts
                     }
                 ],
                 generationConfig: {
                     temperature: 0.7,
-                    maxOutputTokens: 2048
+                    maxOutputTokens: 3000
                 }
             })
         });
