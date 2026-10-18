@@ -27,6 +27,12 @@ USING (
   auth.uid() = id OR public.is_admin()
 );
 
+-- Kebijakan SELECT untuk Webhook WhatsApp Vercel (Memverifikasi nomor member yang aktif)
+DROP POLICY IF EXISTS "profiles_webhook_verify_policy" ON public.profiles;
+CREATE POLICY "profiles_webhook_verify_policy" ON public.profiles
+FOR SELECT TO anon
+USING (status = 'active');
+
 -- Kebijakan UPDATE: User hanya bisa edit data sendiri dan TIDAK BISA naikkan role ke admin
 DROP POLICY IF EXISTS "profiles_update_policy" ON public.profiles;
 CREATE POLICY "profiles_update_policy" ON public.profiles

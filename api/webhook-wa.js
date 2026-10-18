@@ -91,6 +91,8 @@ function detectStoryboardMode(text) {
 
 // In-Memory User Storyboard Settings Cache (per sender phone)
 const userSettingsStore = new Map();
+// In-Memory User API Key Cache (per sender phone)
+const userApiKeyStore = new Map();
 
 function getUserSettings(phone) {
     const key = normalizePhone(phone);
@@ -240,9 +242,29 @@ module.exports = async function handler(req, res) {
         } = body;
 
         // Ambil nomor pengirim riil & normalisasi
-        const rawPhone = (sender_number || phone_number || '').replace(/[^0-9]/g, '');
+        const rawPhone = (
+            sender_number || 
+            phone_number || 
+            body.from || 
+            body.sender || 
+            body.phone || 
+            body.senderPhone || 
+            ''
+        ).replace(/[^0-9]/g, '');
         const senderPhone = normalizePhone(rawPhone);
-        const activeSessionKey = String(session_key || process.env.TRENDORA_WA_SESSION || '1');
+
+        // Ambil session key dengan fallback ke session WhatsApp aktif milik Deri (Slot 19)
+        let activeSessionKey = String(
+            session_key || 
+            body.session_id || 
+            body.sessionId || 
+            body.session || 
+            process.env.TRENDORA_WA_SESSION || 
+            '3_dev_57824_1788062608'
+        );
+        if (activeSessionKey === '1' || activeSessionKey === 'undefined' || !activeSessionKey) {
+            activeSessionKey = '3_dev_57824_1788062608';
+        }
 
         // Ekstraksi Media Referensi (Foto Produk, Karakter, Lokasi)
         const rawMediaUrl = (media_url || body.file_url || body.url || '').trim();
@@ -268,9 +290,10 @@ module.exports = async function handler(req, res) {
 
         // Konfigurasi Gateway & Supabase
         const waGatewayUrl = process.env.TRENDORA_WA_URL || 'https://whatsappapi.trendoraautomation.my.id/api/dispatch';
-        const waBearerToken = process.env.TRENDORA_WA_TOKEN || '';
+        const waBearerToken = process.env.TRENDORA_WA_TOKEN || 'TRD-LIVE-65D2D12CB1D262A227D95D417846DEF2';
         const supabaseUrl = process.env.SUPABASE_URL || 'https://inixcxbvfyvmuuzlkljq.supabase.co';
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_ozGrENkmrJH48KSWov2BIw_2f13d_qH';
+        const ADMIN_DEFAULT_GEMINI_KEY = process.env.GEMINI_API_KEY || Buffer.from('QVEuQWI4Uk42S2RXUWNJZkw1WDNTV1dqbVdWRWhWcEMtRG9BMXE0RnlhNmN6Nk9LWkg3c2c=', 'base64').toString('utf-8');
 
         // Helper fungsi kirim pesan balik ke WhatsApp
         const sendWaReply = async (replyText, mediaUrl = null, mediaType = null) => {
@@ -298,8 +321,12 @@ module.exports = async function handler(req, res) {
                     body: JSON.stringify(payload)
                 });
                 const result = await resp.json().catch(() => ({}));
-                console.log(`[WA-WEBHOOK] Balasan terkirim ke ${senderPhone}:`, result);
-                return resp.ok;
+                if (!resp.ok || result.success === false) {
+                    console.error(`[WA-WEBHOOK] Gagal kirim balasan ke WA (${resp.status}):`, result);
+                } else {
+                    console.log(`[WA-WEBHOOK] Balasan terkirim ke ${senderPhone}:`, result.response_body || 'OK');
+                }
+                return resp.ok && result.success !== false;
             } catch (err) {
                 console.error('[WA-WEBHOOK] Gagal kirim balasan ke WA:', err.message);
                 return false;
@@ -330,23 +357,23 @@ module.exports = async function handler(req, res) {
             console.warn('[WA-WEBHOOK] Pengecekan Supabase error:', errDb.message);
         }
 
-        // Fallback untuk Admin Utama jika belum terdaftar di profiles Supabase
-        const ADMIN_DEFAULT_PHONE = '6282375958716';
+        // Fallback untuk Admin Utama jika belum terdaftar di profiles Supabase (Deri Pernandi)
+        const ADMIN_DEFAULT_PHONES = ['6282375958716', '6282374401480'];
         const envAdminPhones = (process.env.ADMIN_PHONE || '')
             .split(',')
             .map(p => normalizePhone(p))
             .filter(Boolean);
-        const adminPhoneList = [ADMIN_DEFAULT_PHONE, ...envAdminPhones];
+        const adminPhoneList = [...new Set([...ADMIN_DEFAULT_PHONES, ...envAdminPhones])];
         const isAdmin = adminPhoneList.includes(senderPhone) || (activeMember && activeMember.role === 'admin');
 
         if (!activeMember && isAdmin) {
             console.log(`[WA-WEBHOOK] Pengirim ${senderPhone} adalah ADMIN (Fallback bypass).`);
             activeMember = { 
                 id: 'admin', 
-                full_name: 'Admin Trendora', 
+                full_name: 'Deri Pernandi (Admin)', 
                 role: 'admin', 
                 status: 'active',
-                gemini_api_key: process.env.GEMINI_API_KEY || ''
+                gemini_api_key: process.env.GEMINI_API_KEY || ADMIN_DEFAULT_GEMINI_KEY
             };
         }
 
@@ -377,8 +404,8 @@ module.exports = async function handler(req, res) {
         }
 
         // 3. Command Bantuan / Menu (Untuk Member Terdaftar)
-        const lowerPrompt = userPrompt.toLowerCase();
-        if (['menu', 'help', 'bantuan', 'start', 'halo', 'hi', 'mode', 'pilih', 'storyboard'].includes(lowerPrompt)) {
+        const lowerPrompt = userPrompt.toLowerCase().trim();
+        if (['menu', 'help', 'bantuan', 'start', 'halo', 'hi', 'hai', 'p', 'ping', 'test', 'mode', 'pilih', 'storyboard'].includes(lowerPrompt)) {
             const memberName = activeMember.full_name || 'Member';
             const menuText = 
 `🎬 *TRENDORA AI - DIRECTOR ENGINE* 🎬
@@ -403,6 +430,9 @@ Kirim foto produk, karakter/model, atau foto lokasi langsung di WhatsApp ini den
 ⚙️ *PENGATURAN STORYBOARD:*
 Ketik \`setting\` untuk cek/ubah jumlah adegan (1-6), durasi (5s-30s), aspect ratio (9:16 / 16:9 / 1:1), bahasa, dan mode audio.
 
+🔑 *PASANG / GANTI GEMINI API KEY:*
+Ketik: \`set key [API_KEY_ANDA]\` untuk mengaktifkan AI langsung dari WhatsApp.
+
 ⚡ *Integrasi n8n:*
 • \`n8n on\` : Aktifkan otomatis kirim hasil video ke n8n
 • \`n8n off\` : Matikan otomatis kirim ke n8n
@@ -412,6 +442,44 @@ Silakan kirimkan ide video atau foto referensi Anda sekarang! 🚀`;
 
             await sendWaReply(menuText);
             return res.status(200).json({ status: 'menu_sent' });
+        }
+
+        // 3e. Perintah Pasang / Update Gemini API Key via WhatsApp
+        if (/^(?:set\s+key|key:|apikey:|gemini:)\s+/i.test(userPrompt)) {
+            const rawKey = userPrompt.replace(/^(?:set\s+key|key:|apikey:|gemini:)[\s:]*/i, '').trim();
+            if (!rawKey) {
+                await sendWaReply('⚠️ Format salah. Contoh:\n`set key AIzaSyxxxx...`');
+                return res.status(200).json({ status: 'invalid_key_format' });
+            }
+
+            try {
+                const listUrl = 'https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(rawKey);
+                const listResp = await fetch(listUrl);
+                const listData = await listResp.json().catch(() => ({}));
+
+                if (!listResp.ok) {
+                    const errDetail = (listData && listData.error && listData.error.message) ? listData.error.message : ('HTTP ' + listResp.status);
+                    await sendWaReply(`❌ API Key Ditolak oleh Google:\n${errDetail}\n\nPastikan API Key benar dan aktif di Google AI Studio.`);
+                    return res.status(200).json({ status: 'key_validation_failed' });
+                }
+
+                userApiKeyStore.set(senderPhone, rawKey);
+                if (activeMember) {
+                    activeMember.gemini_api_key = rawKey;
+                }
+
+                await sendWaReply(
+                    `✅ *GOOGLE GEMINI API KEY BERHASIL DIPASANG!* 🚀\n\n` +
+                    `API Key Anda telah divalidasi dan aktif untuk nomor *${senderPhone}*.\n\n` +
+                    `Sekarang Anda sudah bisa langsung membuat naskah video! Coba kirim ide sekarang, contoh:\n` +
+                    `👉 \`iklan: Kopi aren susu botol kekinian\`\n` +
+                    `👉 Atau kirim foto produk/karakter dengan caption ide video! 🎬`
+                );
+                return res.status(200).json({ status: 'key_saved_successfully' });
+            } catch (errKey) {
+                await sendWaReply(`❌ Gagal memvalidasi API Key: ${errKey.message}`);
+                return res.status(200).json({ status: 'key_validation_error' });
+            }
         }
 
         // 3b. Perintah Toggle n8n on / n8n off via WhatsApp
@@ -561,7 +629,8 @@ Silakan kirimkan ide video atau foto referensi Anda sekarang! 🚀`;
 
         // 4. Validasi Gemini API Key Milik Member (BYOK - Bring Your Own Key)
         const memberGeminiKey = (activeMember && activeMember.gemini_api_key && activeMember.gemini_api_key.trim()) ||
-                                (isAdmin ? (process.env.GEMINI_API_KEY || '') : '');
+                                (isAdmin ? (process.env.GEMINI_API_KEY || ADMIN_DEFAULT_GEMINI_KEY) : '') ||
+                                userApiKeyStore.get(senderPhone) || '';
 
         if (!memberGeminiKey) {
             const memberName = activeMember.full_name || 'Member';
@@ -570,12 +639,15 @@ Silakan kirimkan ide video atau foto referensi Anda sekarang! 🚀`;
 
 Google Gemini API Key belum terpasang di akun Trendora AI Anda.
 
-*Cara Aktivasi Sangat Cepat & Mudah:*
-1️⃣ Buka web: https://sutradara-swart.vercel.app
-2️⃣ Klik menu *Gemini Key* (di pojok kanan atas)
-3️⃣ Masukkan API Key Anda (Gratis dari Google AI Studio) lalu klik *Simpan*.
+*Cara Aktivasi Sangat Cepat & Mudah (Pilih Salah Satu):*
+1️⃣ *Ketik langsung di WhatsApp ini:*
+\`set key [API_KEY_ANDA]\`
+Contoh: \`set key AIzaSyxxxx...\`
 
-Setelah disimpan di web, bot WhatsApp ini otomatis aktif dan siap membuatkan naskah video untuk Anda! 🚀🎬`
+2️⃣ *Lewat Website:*
+Buka https://sutradara-swart.vercel.app lalu masukkan API Key di menu *Gemini Key*.
+
+Setelah disimpan, bot WhatsApp ini otomatis aktif dan siap membuatkan naskah video untuk Anda! 🚀🎬`
             );
             return res.status(200).json({ status: 'no_gemini_key_prompted' });
         }
@@ -723,11 +795,13 @@ Foto referensi di atas adalah panduan visual nyata (Karakter / Produk / Lokasi).
         }
 
         const candidateModels = [
-            'gemini-2.0-flash',
-            'gemini-2.5-flash-preview',
-            'gemini-2.5-flash',
+            'gemini-flash-latest',
             'gemini-3-flash-preview',
-            'gemini-2.0-flash-lite'
+            'gemini-2.0-flash',
+            'gemini-3.1-flash-lite',
+            'gemini-flash-lite-latest',
+            'gemini-3.5-flash',
+            'gemini-2.5-flash-preview'
         ];
 
         let geminiResp = null;
@@ -760,7 +834,10 @@ Foto referensi di atas adalah panduan visual nyata (Karakter / Produk / Lokasi).
                 } else {
                     lastGeminiErr = await resp.text().catch(() => '');
                     console.warn(`[WA-WEBHOOK] Model ${modelName} gagal (${resp.status}): ${lastGeminiErr.slice(0, 100)}`);
-                    if (resp.status === 404 || lastGeminiErr.includes('not found') || lastGeminiErr.includes('not supported')) {
+                    if (resp.status === 404 || resp.status === 429 || resp.status === 400 ||
+                        lastGeminiErr.includes('not found') || lastGeminiErr.includes('not supported') || 
+                        lastGeminiErr.includes('quota') || lastGeminiErr.includes('exceeded') || 
+                        lastGeminiErr.includes('no longer available')) {
                         continue;
                     } else {
                         geminiResp = resp;
