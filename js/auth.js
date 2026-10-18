@@ -627,7 +627,7 @@ function resetUserSession() {
 /* ROUTING & UI VISIBILITY                                           */
 /* ----------------------------------------------------------------- */
 
-const MAIN_VIEW_IDS = ['sessionCheckView', 'authView', 'homeView', 'creatorFormView', 'loadingView', 'resultView', 'adminView', 'imageGenView', 'voiceOverView', 'autoAdsView', 'videoToolsView', 'historyView'];
+const MAIN_VIEW_IDS = ['sessionCheckView', 'authView', 'homeView', 'creatorFormView', 'loadingView', 'resultView', 'adminView', 'imageGenView', 'voiceOverView', 'autoAdsView', 'videoToolsView', 'videoToPromptView', 'historyView'];
 
 function hideMainViews() {
     MAIN_VIEW_IDS.forEach(id => {

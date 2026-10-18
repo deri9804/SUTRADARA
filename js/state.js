@@ -161,6 +161,18 @@ const state = {
         outputDataUrl: "",
         outputName: ""
     },
+    videoToPrompt: {
+        videoFile: null,
+        videoUrl: "",
+        duration: 0,
+        aspectRatio: "16:9",
+        extractedFrames: [],
+        engine: "all",
+        focusMode: "full",
+        customNotes: "",
+        isAnalyzing: false,
+        lastResult: null
+    },
     fotoReference: [],
     thumbnailSubjectReference: [],
     thumbnailProductReference: [],

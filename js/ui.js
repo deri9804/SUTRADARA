@@ -374,6 +374,27 @@ function navGoVideoMerge() {
     showVideoToolsView();
 }
 
+function navGoVideoToPrompt() {
+    setActiveViewKey('videoTools-toPrompt');
+    setActiveSidebarItem('videoTools-toPrompt');
+    expandNavGroup('videoTools');
+    showVideoToPromptView();
+}
+
+function showVideoToPromptView() {
+    if (!currentUser.loggedIn || currentUser.status !== 'active') {
+        showAuthView();
+        return;
+    }
+    hideMainViews();
+    showAppHeader();
+    const v = document.getElementById('videoToPromptView');
+    if (v) v.classList.remove('hidden');
+    document.getElementById('userNavMenu').classList.remove('hidden');
+    document.getElementById('userDropdown').classList.add('hidden');
+    if (typeof initVideoToPromptUI === 'function') initVideoToPromptUI();
+}
+
 function showVideoToolsView() {
     if (!currentUser.loggedIn || currentUser.status !== 'active') {
         showAuthView();
@@ -549,7 +570,7 @@ function clearActiveViewKey() {
     try { localStorage.removeItem(ACTIVE_VIEW_STORAGE_KEY); } catch (e) {}
 }
 
-const VALID_ACTIVE_KEYS = ['storyboard-create', 'storyboard-commercial', 'storyboard-drama', 'storyboard-animation', 'storyboard-shortFilm', 'storyboard-education', 'storyboard-documentary', 'storyboard-custom', 'imageGen-foto', 'imageGen-thumbnail', 'imageGen-infographic', 'imageGen-ugc', 'imageGen-character', 'imageGen-poster', 'videoTools-merge', 'history-view', 'voiceover', 'admin'];
+const VALID_ACTIVE_KEYS = ['storyboard-create', 'storyboard-commercial', 'storyboard-drama', 'storyboard-animation', 'storyboard-shortFilm', 'storyboard-education', 'storyboard-documentary', 'storyboard-custom', 'imageGen-foto', 'imageGen-thumbnail', 'imageGen-infographic', 'imageGen-ugc', 'imageGen-character', 'imageGen-poster', 'videoTools-merge', 'videoTools-toPrompt', 'history-view', 'voiceover', 'admin'];
 
 function restoreActiveView(role) {
     const saved = getActiveViewKey();
@@ -628,6 +649,11 @@ function restoreActiveView(role) {
             expandNavGroup('videoTools');
             setActiveSidebarItem('videoTools-merge');
             if (typeof showVideoToolsView === 'function') showVideoToolsView();
+            return true;
+        case 'videoTools-toPrompt':
+            expandNavGroup('videoTools');
+            setActiveSidebarItem('videoTools-toPrompt');
+            if (typeof showVideoToPromptView === 'function') showVideoToPromptView();
             return true;
         case 'admin':
             showAdminView();

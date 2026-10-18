@@ -274,6 +274,13 @@
                         <span class="nav-label">Gabungkan Video</span>
                         <span class="nav-tooltip">Gabungkan Video</span>
                     </a>
+                    <a href="javascript:void(0)" onclick="navGoVideoToPrompt()" data-tooltip="Video to Prompt" data-nav-key="videoTools-toPrompt" class="nav-subitem flex items-center gap-2.5 pl-9 pr-3 py-2 my-0.5 rounded-lg text-[11px] text-gray-400 hover:text-white hover:bg-amber-500/15 transition-all duration-200">
+                        <span class="nav-icon-wrap-sm bg-amber-500/15 border border-amber-500/30">
+                            <i class="fa-solid fa-wand-magic-sparkles text-amber-400 text-[10px]"></i>
+                        </span>
+                        <span class="nav-label">Video to Prompt</span>
+                        <span class="nav-tooltip">Video to Prompt</span>
+                    </a>
                 </div>
             </div>
 
@@ -1958,6 +1965,344 @@
             </div>
         </div>
 
+        <!-- VIEW 6C: VIDEO TOOLS - VIDEO TO PROMPT (REVERSE VIDEO AI) -->
+        <div id="videoToPromptView" class="hidden w-full max-w-none space-y-6">
+            <!-- Header Card -->
+            <div class="glass-card rounded-2xl p-6 border border-amber-500/20 shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-pink-500 to-violet-500"></div>
+                <div class="flex justify-between items-start gap-4 flex-wrap">
+                    <div>
+                        <h2 class="text-xl font-extrabold text-white tracking-wide flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 inline-flex items-center justify-center">
+                                <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                            </span>
+                            Video to Prompt
+                            <span class="text-[10px] bg-gradient-to-r from-amber-400 to-pink-500 text-black font-black px-2 py-0.5 rounded-full uppercase tracking-wider ml-1">AI Reverse Vision</span>
+                        </h2>
+                        <p class="text-xs text-gray-400 mt-1">Bedah video apa saja menjadi prompt sinematik siap pakai untuk Midjourney v6.1, Flux.1, Kling AI, Runway Gen-3, Luma Dream Machine, serta analisis estetika &amp; lensa sutradara.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openImageGenHistoryModal('video-prompt')" class="text-[10px] bg-white/5 hover:bg-amber-500/15 text-amber-300 px-3 py-1.5 rounded-lg border border-white/10 hover:border-amber-500/50 transition font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-clock-rotate-left mr-1"></i>History
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two-Column Workspace -->
+            <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-6">
+                <!-- Left Column: Video Uploader & Analyzer Controls -->
+                <div class="space-y-5">
+                    <!-- Video Upload Dropzone -->
+                    <div class="glass-card rounded-2xl p-5 border border-white/10 shadow-xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-extrabold text-white uppercase tracking-wide flex items-center gap-2">
+                                <i class="fa-solid fa-film text-amber-400"></i>
+                                Upload Video Referensi
+                            </h3>
+                            <button id="btnResetVideoToPrompt" onclick="resetVideoToPrompt()" class="hidden text-[10px] font-bold uppercase tracking-wider text-red-300 hover:text-white border border-red-500/30 hover:border-red-400/70 rounded-lg px-2.5 py-1 transition bg-red-500/5 hover:bg-red-500/20">
+                                <i class="fa-solid fa-rotate-left mr-1"></i>Ganti Video
+                            </button>
+                        </div>
+
+                        <!-- Dropzone Area -->
+                        <div id="videoToPromptDropZone" class="group block border-2 border-dashed border-amber-500/30 hover:border-amber-400/70 rounded-2xl bg-black/25 hover:bg-amber-500/5 transition cursor-pointer p-8 text-center" onclick="document.getElementById('videoToPromptInput').click()">
+                            <span class="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300 inline-flex items-center justify-center shadow-[0_0_24px_-8px_rgba(245,158,11,0.8)] group-hover:scale-105 transition-transform">
+                                <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                            </span>
+                            <span class="block text-sm font-extrabold text-white mt-4 uppercase tracking-wide">Pilih atau Drag Video ke Sini</span>
+                            <span class="block text-xs text-gray-400 mt-1">Mendukung MP4, WebM, MOV, MKV. Diproses langsung di browser secara aman &amp; cepat.</span>
+                        </div>
+                        <input id="videoToPromptInput" type="file" accept="video/*" class="hidden" onchange="handleVideoToPromptSelect(this.files && this.files[0])">
+
+                        <!-- Video Player Preview Container (Hidden initially) -->
+                        <div id="videoToPromptPreviewWrap" class="hidden space-y-3">
+                            <div class="relative rounded-2xl overflow-hidden bg-black border border-white/10 shadow-lg">
+                                <video id="videoToPromptPlayer" controls class="w-full max-h-[300px] object-contain bg-black"></video>
+                                <div id="videoToPromptVideoMeta" class="absolute top-2 right-2 bg-black/70 backdrop-blur-md border border-white/15 px-2.5 py-1 rounded-lg text-[10px] font-mono text-amber-300">
+                                    00:00 • 16:9
+                                </div>
+                            </div>
+
+                            <!-- Extracted Keyframes Strip -->
+                            <div class="rounded-xl bg-black/40 border border-white/10 p-3">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[11px] font-bold text-gray-300 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-images text-pink-400 text-xs"></i>
+                                        Keyframe Visual yang Dianalisis AI:
+                                    </span>
+                                    <span id="videoToPromptFrameCountBadge" class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                        5 Frame
+                                    </span>
+                                </div>
+                                <div id="videoToPromptFramesStrip" class="grid grid-cols-5 gap-2 overflow-x-auto py-1">
+                                    <!-- Frames thumbnails injected by JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Target Configuration Card -->
+                    <div class="glass-card rounded-2xl p-5 border border-white/10 shadow-xl space-y-4">
+                        <h3 class="text-sm font-extrabold text-white uppercase tracking-wide flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-cyan-400"></i>
+                            Preferensi Bedah Prompt
+                        </h3>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-[11px] font-bold text-gray-300 block mb-1.5 uppercase tracking-wider">Fokus Output</label>
+                                <select id="videoToPromptFocusMode" class="glass-input w-full rounded-xl px-3 py-2 text-xs text-white bg-black/40 border border-white/15 focus:border-amber-400 transition cursor-pointer">
+                                    <option value="full">🌟 Paket Lengkap (Image + Video + Sinematografi)</option>
+                                    <option value="image">🎨 AI Image Prompt (Midjourney / Flux / SDXL)</option>
+                                    <option value="video">🎥 AI Video Motion (Kling / Runway / Luma)</option>
+                                    <option value="storyboard">🎬 Multi-Scene Breakdown (Pecah Adegan)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-bold text-gray-300 block mb-1.5 uppercase tracking-wider">Target AI Generator</label>
+                                <select id="videoToPromptTargetEngine" class="glass-input w-full rounded-xl px-3 py-2 text-xs text-white bg-black/40 border border-white/15 focus:border-amber-400 transition cursor-pointer">
+                                    <option value="all">Universal (Midjourney + Flux + Kling + Runway)</option>
+                                    <option value="midjourney">Midjourney v6.1 (--ar, --v 6.1, --style raw)</option>
+                                    <option value="flux">Flux.1 [dev/schnell] (Photorealistic RAW)</option>
+                                    <option value="kling">Kling AI 1.5 (High Motion Dynamics)</option>
+                                    <option value="runway">Runway Gen-3 Alpha (Cinematic Camera Paths)</option>
+                                    <option value="luma">Luma Dream Machine (Fluid Physics)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="text-[11px] font-bold text-gray-300 block mb-1.5 uppercase tracking-wider">
+                                Catatan / Instruksi Khusus Sutradara (Opsional)
+                            </label>
+                            <textarea id="videoToPromptCustomNotes" rows="2" placeholder="Contoh: Fokus pada pencahayaan neon malam hari, abaikan orang di latar belakang, atau tekankan gerakan kamera 360..." class="glass-input w-full rounded-xl p-3 text-xs text-white bg-black/40 border border-white/15 focus:border-amber-400 transition resize-none"></textarea>
+                        </div>
+
+                        <!-- Notice / Error Message -->
+                        <div id="videoToPromptNotice" class="hidden text-[11px] p-3 rounded-xl border font-medium"></div>
+
+                        <!-- Action Button -->
+                        <button id="btnGenerateVideoToPrompt" onclick="startVideoToPromptAnalysis()" disabled class="btn-generate w-full btn-gradient-primary text-white font-extrabold text-sm rounded-2xl shadow-[0_10px_40px_-10px_rgba(245,158,11,0.5)] py-3 px-6 uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                            <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+                            <span id="btnGenerateVideoToPromptText">Ekstrak &amp; Bedah Prompt Video</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right Column: Results & Prompts Output -->
+                <div class="space-y-5">
+                    <!-- Initial Placeholder State (Shown when no result yet) -->
+                    <div id="videoToPromptEmptyState" class="glass-card rounded-2xl p-8 border border-white/10 shadow-xl text-center space-y-4 py-16">
+                        <div class="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/20 text-amber-400 inline-flex items-center justify-center text-2xl mx-auto shadow-inner">
+                            <i class="fa-solid fa-clapperboard"></i>
+                        </div>
+                        <h4 class="text-base font-extrabold text-white">Belum Ada Video yang Dibedah</h4>
+                        <p class="text-xs text-gray-400 max-w-md mx-auto leading-relaxed">
+                            Upload file video di kolom kiri dan klik <strong>"Ekstrak &amp; Bedah Prompt Video"</strong>. AI akan mengekstrak keyframe visual dan menyusun prompt Midjourney, Flux, Kling, Runway, serta formula sinematografinya di sini.
+                        </p>
+                        <div class="flex items-center justify-center gap-2 pt-2">
+                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300">
+                                <i class="fa-solid fa-camera mr-1 text-pink-400"></i>Midjourney v6.1
+                            </span>
+                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300">
+                                <i class="fa-solid fa-video mr-1 text-cyan-400"></i>Kling AI / Runway
+                            </span>
+                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300">
+                                <i class="fa-solid fa-lightbulb mr-1 text-amber-400"></i>Cinematography
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Loading / Processing State -->
+                    <div id="videoToPromptLoadingState" class="hidden glass-card rounded-2xl p-8 border border-amber-500/30 shadow-2xl text-center space-y-5 py-14 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 via-pink-500 to-cyan-500 animate-pulse"></div>
+                        <div class="relative w-16 h-16 mx-auto">
+                            <span class="w-16 h-16 rounded-full border-2 border-amber-500/30 border-t-amber-400 animate-spin inline-block"></span>
+                            <span class="absolute inset-0 inline-flex items-center justify-center text-amber-300">
+                                <i class="fa-solid fa-wand-magic-sparkles text-lg animate-pulse"></i>
+                            </span>
+                        </div>
+                        <div>
+                            <h4 id="videoToPromptLoadingTitle" class="text-base font-extrabold text-white">Menganalisis Rangkaian Keyframe...</h4>
+                            <p id="videoToPromptLoadingDesc" class="text-xs text-amber-300 font-mono mt-1">AI Director Engine sedang membedah komposisi visual &amp; pergerakan kamera...</p>
+                        </div>
+                        <div class="max-w-xs mx-auto">
+                            <div class="h-1.5 w-full bg-black/40 rounded-full overflow-hidden border border-white/10">
+                                <div id="videoToPromptLoadingBar" class="h-full bg-gradient-to-r from-amber-500 to-pink-500 rounded-full w-2/3 animate-pulse"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Result Container (Populated when analysis completes) -->
+                    <div id="videoToPromptResultContainer" class="hidden space-y-4">
+                        <!-- Result Header Bar -->
+                        <div class="glass-card rounded-2xl p-4 border border-emerald-500/30 shadow-xl flex items-center justify-between gap-3 flex-wrap">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <span class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 inline-flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                </span>
+                                <div class="min-w-0">
+                                    <div id="videoToPromptResultTitle" class="text-xs font-black text-white truncate uppercase tracking-wider">Hasil Bedah Video AI</div>
+                                    <div id="videoToPromptResultMeta" class="text-[10px] font-mono text-emerald-300 truncate">Aspect Ratio: 16:9 • Cinematic</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <button onclick="copyAllVideoToPromptResults()" class="text-[10px] bg-white/5 hover:bg-amber-500/20 text-amber-300 px-2.5 py-1.5 rounded-lg border border-amber-500/30 transition font-bold uppercase tracking-wider flex items-center gap-1">
+                                    <i class="fa-solid fa-copy"></i>
+                                    <span>Copy Semua</span>
+                                </button>
+                                <button onclick="sendVideoPromptToStoryboard()" class="text-[10px] bg-purple-500/15 hover:bg-purple-500/25 text-purple-200 px-2.5 py-1.5 rounded-lg border border-purple-500/30 transition font-bold uppercase tracking-wider flex items-center gap-1">
+                                    <i class="fa-solid fa-film text-purple-400"></i>
+                                    <span>Ke Storyboard</span>
+                                </button>
+                                <button onclick="sendVideoPromptToFotoGenerate()" class="text-[10px] bg-pink-500/15 hover:bg-pink-500/25 text-pink-200 px-2.5 py-1.5 rounded-lg border border-pink-500/30 transition font-bold uppercase tracking-wider flex items-center gap-1">
+                                    <i class="fa-solid fa-camera text-pink-400"></i>
+                                    <span>Ke FotoGen</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Director Executive Summary -->
+                        <div class="glass-card rounded-2xl p-4 border border-white/10 shadow-lg">
+                            <div class="text-[10px] font-extrabold text-amber-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                <i class="fa-solid fa-compass-drafting"></i>Ringkasan Sutradara (Director's Essence)
+                            </div>
+                            <p id="videoToPromptDirectorSummary" class="text-xs text-gray-200 leading-relaxed italic">
+                                ...
+                            </p>
+                        </div>
+
+                        <!-- Card 1: AI Image Prompt (Midjourney / Flux) -->
+                        <div class="glass-card rounded-2xl p-5 border border-pink-500/20 shadow-xl space-y-3">
+                            <div class="flex items-center justify-between gap-2 flex-wrap">
+                                <span class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-image text-pink-400"></i>
+                                    AI Image Prompt (Midjourney v6.1 &amp; Flux.1)
+                                </span>
+                                <div class="flex items-center gap-1">
+                                    <button onclick="copyPromptBlock('videoToPromptMjText', this)" class="text-[10px] bg-white/5 hover:bg-pink-500/20 text-pink-300 px-2.5 py-1 rounded-lg border border-pink-500/30 transition font-bold uppercase tracking-wider">
+                                        <i class="fa-solid fa-copy mr-1"></i>Copy Midjourney
+                                    </button>
+                                    <button onclick="copyPromptBlock('videoToPromptFluxText', this)" class="text-[10px] bg-white/5 hover:bg-violet-500/20 text-violet-300 px-2.5 py-1 rounded-lg border border-violet-500/30 transition font-bold uppercase tracking-wider">
+                                        <i class="fa-solid fa-copy mr-1"></i>Copy Flux
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Midjourney Prompt Box -->
+                            <div class="space-y-1">
+                                <div class="text-[10px] font-mono font-bold text-pink-300 uppercase tracking-wider flex items-center justify-between">
+                                    <span>Midjourney v6.1</span>
+                                    <span class="text-gray-400 font-normal">--style raw --v 6.1</span>
+                                </div>
+                                <div id="videoToPromptMjText" class="p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-gray-200 font-mono leading-relaxed select-all">
+                                    ...
+                                </div>
+                            </div>
+
+                            <!-- Flux Prompt Box -->
+                            <div class="space-y-1">
+                                <div class="text-[10px] font-mono font-bold text-violet-300 uppercase tracking-wider flex items-center justify-between">
+                                    <span>Flux.1 [dev / schnell]</span>
+                                    <span class="text-gray-400 font-normal">Photorealistic RAW</span>
+                                </div>
+                                <div id="videoToPromptFluxText" class="p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-gray-200 font-mono leading-relaxed select-all">
+                                    ...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: AI Video Motion Prompt (Kling / Runway / Luma) -->
+                        <div class="glass-card rounded-2xl p-5 border border-cyan-500/20 shadow-xl space-y-3">
+                            <div class="flex items-center justify-between gap-2 flex-wrap">
+                                <span class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-video text-cyan-400"></i>
+                                    AI Video Motion Prompt (Kling / Runway Gen-3 / Luma)
+                                </span>
+                                <button onclick="copyPromptBlock('videoToPromptMotionText', this)" class="text-[10px] bg-white/5 hover:bg-cyan-500/20 text-cyan-300 px-2.5 py-1 rounded-lg border border-cyan-500/30 transition font-bold uppercase tracking-wider">
+                                    <i class="fa-solid fa-copy mr-1"></i>Copy Motion Prompt
+                                </button>
+                            </div>
+                            <div id="videoToPromptMotionText" class="p-3.5 rounded-xl bg-black/50 border border-white/10 text-xs text-cyan-100 font-mono leading-relaxed select-all">
+                                ...
+                            </div>
+                        </div>
+
+                        <!-- Card 3: Cinematography & Director Breakdown Grid -->
+                        <div class="glass-card rounded-2xl p-5 border border-white/10 shadow-xl space-y-3">
+                            <div class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-clapperboard text-amber-400"></i>
+                                Bedah Sinematografi &amp; Estetika Sutradara
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                <div class="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                                    <div class="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fa-solid fa-vector-square"></i>Shot Type &amp; Framing
+                                    </div>
+                                    <div id="cinemaShotType" class="text-gray-200 font-medium">Medium Close-Up</div>
+                                </div>
+                                <div class="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                                    <div class="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fa-solid fa-lightbulb"></i>Lighting &amp; Mood
+                                    </div>
+                                    <div id="cinemaLighting" class="text-gray-200 font-medium">Golden Hour Warmth</div>
+                                </div>
+                                <div class="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                                    <div class="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fa-solid fa-camera"></i>Lensa &amp; Kamera
+                                    </div>
+                                    <div id="cinemaCamera" class="text-gray-200 font-medium">35mm Anamorphic, Shallow DOF</div>
+                                </div>
+                                <div class="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                                    <div class="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fa-solid fa-palette"></i>Color Grading &amp; Palette
+                                    </div>
+                                    <div id="cinemaColor" class="text-gray-200 font-medium">Teal &amp; Orange, Cinematic</div>
+                                </div>
+                                <div class="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1 sm:col-span-2">
+                                    <div class="text-[10px] font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fa-solid fa-music"></i>Rekomendasi Audio &amp; SFX Mood
+                                    </div>
+                                    <div id="cinemaAudio" class="text-gray-200 font-medium">Ambient synth drone with subtle risers</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 4: Multi-Scene Breakdown (Collapsible if present) -->
+                        <div id="videoToPromptScenesWrap" class="hidden glass-card rounded-2xl p-5 border border-purple-500/20 shadow-xl space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-list-ol text-purple-400"></i>
+                                    Scene Breakdown (Pecah Adegan Video)
+                                </span>
+                                <span id="videoToPromptScenesCount" class="text-[10px] font-mono text-purple-300">2 Adegan</span>
+                            </div>
+                            <div id="videoToPromptScenesList" class="space-y-3">
+                                <!-- Scene items injected dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Card 5: Negative Prompt -->
+                        <div class="glass-card rounded-2xl p-4 border border-red-500/20 shadow-xl space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-black text-red-300 uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-ban text-red-400"></i>
+                                    Negative Prompt Rekomendasi
+                                </span>
+                                <button onclick="copyPromptBlock('videoToPromptNegText', this)" class="text-[10px] bg-white/5 hover:bg-red-500/20 text-red-300 px-2 py-1 rounded-lg border border-red-500/30 transition font-bold uppercase tracking-wider">
+                                    <i class="fa-solid fa-copy mr-1"></i>Copy
+                                </button>
+                            </div>
+                            <div id="videoToPromptNegText" class="p-3 rounded-xl bg-black/50 border border-white/10 text-xs text-gray-400 font-mono leading-relaxed select-all">
+                                ...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- VIEW 7: UNIFIED HISTORY (PHASE 6A.6) -->
         <div id="historyView" class="hidden w-full max-w-none space-y-6">
 
@@ -1985,6 +2330,7 @@
                             <option value="voiceover">Voice Over</option>
                             <option value="autoads">Auto Ads</option>
                             <option value="video-merge">Gabungkan Video</option>
+                            <option value="video-prompt">Video to Prompt</option>
                         </select>
                         <button onclick="clearUnifiedHistory()" class="text-[10px] font-bold uppercase tracking-wider text-red-400 hover:text-white border border-red-500/40 hover:border-red-400/80 rounded-lg px-3 py-2 transition bg-red-500/5 hover:bg-red-500/20">
                             <i class="fa-solid fa-trash-can mr-1"></i>Clear History
@@ -2557,6 +2903,7 @@
     <script src="js/voiceover.js?v=5.1.4"></script>
     <script src="js/autoads.js?v=5.1.4"></script>
     <script src="js/video-tools.js?v=5.1.4"></script>
+    <script src="js/video-to-prompt.js?v=5.1.5"></script>
     <script src="js/storyboard.js?v=5.1.4"></script>
     <script src="js/history.js?v=5.1.4"></script>
     <script src="js/app.js?v=5.1.4"></script>

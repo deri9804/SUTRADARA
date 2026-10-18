@@ -13,7 +13,8 @@ const HISTORY_FILTER_LABELS = {
     poster: 'Poster & Social Media',
     voiceover: 'Voice Over',
     autoads: 'Auto Ads',
-    'video-merge': 'Gabungkan Video'
+    'video-merge': 'Gabungkan Video',
+    'video-prompt': 'Video to Prompt'
 };
 
 async function loadAllUnifiedHistory() {
@@ -47,6 +48,9 @@ async function loadAllUnifiedHistory() {
         } else if (kind === 'video-merge') {
             summaryParts.push((cfg.clipCount || 0) + ' video');
             if (cfg.voiceFile) summaryParts.push('voice over');
+        } else if (kind === 'video-prompt') {
+            summaryParts.push((cfg.title || cfg.genre || 'Reverse Prompt').slice(0, 60));
+            if (cfg.aspectRatio) summaryParts.push(cfg.aspectRatio);
         }
         const summary = summaryParts.filter(Boolean).join(' · ') || (HISTORY_FILTER_LABELS[kind] || kind);
         let label = rec.version && rec.version > 1 ? ('Edit Versi ' + (rec.version - 1)) : 'Original';
@@ -354,6 +358,10 @@ async function reopenHistoryRecord(unifiedId) {
         reopenVideoMergeFromHistory(payload);
         return;
     }
+    if (type === 'video-prompt') {
+        reopenVideoToPromptFromHistory(payload);
+        return;
+    }
     // Image Gen tools
     reopenImageGenFromHistory(payload);
 }
@@ -472,6 +480,17 @@ function reopenVideoMergeFromHistory(rec) {
     const meta = document.getElementById('videoMergeResultMeta');
     if (meta) meta.textContent = cfg.outputSize ? formatFileSize(cfg.outputSize) : 'history';
     showVideoMergeNotice('Hasil video dari history dibuka. Upload ulang klip jika ingin menyusun versi baru.', 'success');
+    closeImageGenHistoryModal();
+}
+
+function reopenVideoToPromptFromHistory(rec) {
+    setActiveViewKey('videoTools-toPrompt');
+    setActiveSidebarItem('videoTools-toPrompt');
+    expandNavGroup('videoTools');
+    showVideoToPromptView();
+    if (typeof loadVideoToPromptResultFromHistory === 'function') {
+        loadVideoToPromptResultFromHistory(rec);
+    }
     closeImageGenHistoryModal();
 }
 
