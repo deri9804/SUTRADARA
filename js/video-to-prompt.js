@@ -924,3 +924,4 @@ function sendVideoPromptToFotoGenerate() {
         }
     }, 200);
 }
+
