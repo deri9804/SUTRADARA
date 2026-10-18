@@ -77,3 +77,37 @@ CREATE POLICY "member_settings_policy" ON public.member_settings
 FOR ALL TO authenticated
 USING (auth.uid() = user_id OR public.is_admin())
 WITH CHECK (auth.uid() = user_id OR public.is_admin());
+
+-- ---------------------------------------------------------------------
+-- 5. TABEL: WA_STORYBOARDS (Riwayat Konsep Video dari WhatsApp Bot)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.wa_storyboards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    phone_number TEXT,
+    sender_name TEXT,
+    prompt TEXT,
+    result TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE public.wa_storyboards ENABLE ROW LEVEL SECURITY;
+
+-- Kebijakan SELECT: User dapat membaca riwayat miliknya, admin bisa membaca semua
+DROP POLICY IF EXISTS "wa_storyboards_select_policy" ON public.wa_storyboards;
+CREATE POLICY "wa_storyboards_select_policy" ON public.wa_storyboards
+FOR SELECT TO authenticated
+USING (auth.uid() = user_id OR public.is_admin());
+
+-- Kebijakan INSERT: Mengizinkan Webhook Vercel (anon/service_role) & Authenticated menyimpan riwayat
+DROP POLICY IF EXISTS "wa_storyboards_insert_policy" ON public.wa_storyboards;
+CREATE POLICY "wa_storyboards_insert_policy" ON public.wa_storyboards
+FOR INSERT TO anon, authenticated
+WITH CHECK (true);
+
+-- Kebijakan DELETE: User & Admin bisa menghapus riwayat
+DROP POLICY IF EXISTS "wa_storyboards_delete_policy" ON public.wa_storyboards;
+CREATE POLICY "wa_storyboards_delete_policy" ON public.wa_storyboards
+FOR DELETE TO authenticated
+USING (auth.uid() = user_id OR public.is_admin());
+

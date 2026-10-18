@@ -66,17 +66,17 @@ async function loadAllUnifiedHistory() {
         };
     });
 
-    // Sinkronisasi Riwayat Perintah WhatsApp dari Supabase
+    // Sinkronisasi Riwayat Perintah WhatsApp dari Supabase & Fallback Webhook Engine
     let waNorm = [];
-    if (typeof supabaseClient !== 'undefined' && supabaseClient && currentUser && currentUser.userId) {
-        try {
+    try {
+        if (typeof supabaseClient !== 'undefined' && supabaseClient && currentUser && currentUser.userId) {
             const { data: waList, error: waErr } = await supabaseClient
                 .from('wa_storyboards')
                 .select('*')
                 .eq('user_id', currentUser.userId)
                 .order('created_at', { ascending: false })
                 .limit(50);
-            if (!waErr && Array.isArray(waList)) {
+            if (!waErr && Array.isArray(waList) && waList.length > 0) {
                 waNorm = waList.map(rec => ({
                     unifiedId: 'wa:' + rec.id,
                     type: 'whatsapp',
@@ -87,9 +87,28 @@ async function loadAllUnifiedHistory() {
                     payload: rec
                 }));
             }
-        } catch (e) {
-            console.warn('[History] WA sync failed:', e);
         }
+
+        // Fallback: Jika di Supabase belum ada atau tabel baru, ambil dari endpoint Webhook Engine
+        if (waNorm.length === 0) {
+            const fbResp = await fetch('/api/webhook-wa?action=history').catch(() => null);
+            if (fbResp && fbResp.ok) {
+                const fbData = await fbResp.json();
+                if (Array.isArray(fbData.history) && fbData.history.length > 0) {
+                    waNorm = fbData.history.map(rec => ({
+                        unifiedId: 'wa:' + (rec.id || Math.random().toString(36).slice(2)),
+                        type: 'whatsapp',
+                        ts: rec.created_at || '',
+                        title: (rec.prompt || 'Perintah WhatsApp').slice(0, 45),
+                        summary: 'WhatsApp Bot • ' + (rec.prompt || '').slice(0, 70),
+                        thumb: '',
+                        payload: rec
+                    }));
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[History] WA sync failed:', e);
     }
 
     return sbNorm.concat(igNorm).concat(waNorm).sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));

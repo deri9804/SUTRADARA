@@ -93,6 +93,10 @@ function detectStoryboardMode(text) {
 const userSettingsStore = new Map();
 // In-Memory User API Key Cache (per sender phone)
 const userApiKeyStore = new Map();
+// In-Memory User n8n Config Cache (per sender phone)
+const userN8nConfigStore = new Map();
+// In-Memory Recent WhatsApp Storyboard History Buffer
+const recentWaHistory = [];
 
 function getUserSettings(phone) {
     const key = normalizePhone(phone);
@@ -211,8 +215,17 @@ function parseStoryboardSettings(text, baseSettings) {
 }
 
 module.exports = async function handler(req, res) {
-    // 1. Health check & Method Guard
+    // 1. Health check & History API endpoint
     if (req.method === 'GET') {
+        const query = req.query || {};
+        const urlStr = req.url || '';
+        if (query.action === 'history' || query.action === 'get_history' || urlStr.includes('action=history')) {
+            return res.status(200).json({
+                status: 'success',
+                count: recentWaHistory.length,
+                history: recentWaHistory
+            });
+        }
         return res.status(200).json({
             status: 'online',
             service: 'Trendora AI WhatsApp Member Engine',
@@ -369,10 +382,14 @@ module.exports = async function handler(req, res) {
         if (!activeMember && isAdmin) {
             console.log(`[WA-WEBHOOK] Pengirim ${senderPhone} adalah ADMIN (Fallback bypass).`);
             activeMember = { 
-                id: 'admin', 
-                full_name: 'Deri Pernandi (Admin)', 
+                id: '7ab993cd-cc32-48e3-b323-0f81908c83a9', 
+                full_name: 'Deri Pernandi', 
+                email: 'deripernandi99@gmail.com',
                 role: 'admin', 
                 status: 'active',
+                phone: senderPhone,
+                n8n_auto_forward: true,
+                n8n_webhook_url: 'https://n8n-deripernandi.trendoraautomation.my.id/webhook/video-Trendora',
                 gemini_api_key: process.env.GEMINI_API_KEY || ADMIN_DEFAULT_GEMINI_KEY
             };
         }
@@ -484,20 +501,8 @@ Silakan kirimkan ide video atau foto referensi Anda sekarang! 🚀`;
 
         // 3b. Perintah Toggle n8n on / n8n off via WhatsApp
         if (lowerPrompt === 'n8n on' || lowerPrompt === '/n8n on') {
-            if (activeMember && activeMember.id !== 'admin' && supabaseKey) {
-                try {
-                    await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${activeMember.id}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'apikey': supabaseKey,
-                            'Authorization': `Bearer ${supabaseKey}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ n8n_auto_forward: true })
-                    });
-                } catch (_) {}
-            }
-            activeMember.n8n_auto_forward = true;
+            userN8nConfigStore.set(senderPhone, Object.assign(userN8nConfigStore.get(senderPhone) || {}, { autoForward: true }));
+            if (activeMember) activeMember.n8n_auto_forward = true;
             await sendWaReply(
                 `⚡ *Auto-Forward n8n BERHASIL DIAKTIFKAN (ON)!*\n\n` +
                 `Mulai sekarang, setiap konsep video & prompt yang dibuat via WhatsApp akan *otomatis dikirim ke workflow n8n* Anda untuk diproses lebih lanjut.\n\n` +
@@ -507,20 +512,8 @@ Silakan kirimkan ide video atau foto referensi Anda sekarang! 🚀`;
         }
 
         if (lowerPrompt === 'n8n off' || lowerPrompt === '/n8n off') {
-            if (activeMember && activeMember.id !== 'admin' && supabaseKey) {
-                try {
-                    await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${activeMember.id}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'apikey': supabaseKey,
-                            'Authorization': `Bearer ${supabaseKey}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ n8n_auto_forward: false })
-                    });
-                } catch (_) {}
-            }
-            activeMember.n8n_auto_forward = false;
+            userN8nConfigStore.set(senderPhone, Object.assign(userN8nConfigStore.get(senderPhone) || {}, { autoForward: false }));
+            if (activeMember) activeMember.n8n_auto_forward = false;
             await sendWaReply(
                 `⏸️ *Auto-Forward n8n DINONAKTIFKAN (OFF).*\n\n` +
                 `Hasil konsep video hanya akan dikirim ke WhatsApp ini dan tersimpan di web dashboard Trendora AI Anda tanpa diteruskan ke n8n.\n\n` +
@@ -530,14 +523,37 @@ Silakan kirimkan ide video atau foto referensi Anda sekarang! 🚀`;
         }
 
         if (lowerPrompt === 'n8n status' || lowerPrompt === '/n8n status') {
-            const isCurrentlyOn = activeMember.n8n_auto_forward === true || process.env.N8N_AUTO_FORWARD === 'true';
+            const cachedN8n = userN8nConfigStore.get(senderPhone);
+            const isCurrentlyOn = cachedN8n && typeof cachedN8n.autoForward === 'boolean' 
+                ? cachedN8n.autoForward 
+                : ((activeMember && activeMember.n8n_auto_forward !== false) || process.env.N8N_AUTO_FORWARD === 'true');
+            const currentUrl = (cachedN8n && cachedN8n.url) || (activeMember && activeMember.n8n_webhook_url) || 'https://n8n-deripernandi.trendoraautomation.my.id/webhook/video-Trendora';
             await sendWaReply(
                 `📊 *STATUS INTEGRASI n8n:* \n\n` +
                 `• Auto-Forward: *${isCurrentlyOn ? 'AKTIF (ON) 🟢' : 'NONAKTIF (OFF) ⚪'}*\n` +
-                `• Mode: ${isCurrentlyOn ? 'Naskah otomatis diteruskan ke n8n' : 'Naskah hanya dikirim ke WA & Web'}\n\n` +
-                `_Ketik \`n8n on\` untuk mengaktifkan atau \`n8n off\` untuk mematikan._`
+                `• Target Webhook:\n\`${currentUrl}\`\n\n` +
+                `_Ketik \`n8n on\` untuk aktifkan, \`n8n off\` untuk matikan, atau \`set n8n [URL]\` untuk ubah URL webhook._`
             );
             return res.status(200).json({ status: 'n8n_status_checked' });
+        }
+
+        // 3f. Perintah Ganti URL n8n via WhatsApp
+        if (/^(?:set\s+n8n|n8n\s+url[:\s]+)/i.test(userPrompt)) {
+            const rawUrl = userPrompt.replace(/^(?:set\s+n8n|n8n\s+url[:\s]+)[\s:]*/i, '').trim();
+            if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+                userN8nConfigStore.set(senderPhone, { url: rawUrl, autoForward: true });
+                if (activeMember) {
+                    activeMember.n8n_webhook_url = rawUrl;
+                    activeMember.n8n_auto_forward = true;
+                }
+                await sendWaReply(
+                    `✅ *URL WEBHOOK n8n BERHASIL DIPERBARUI!* ⚡\n\n` +
+                    `• Webhook Target:\n\`${rawUrl}\`\n` +
+                    `• Auto-Forward: *AKTIF (ON) 🟢*\n\n` +
+                    `Setiap konsep video yang dibuat via WhatsApp akan otomatis dikirim ke workflow n8n ini! 🚀`
+                );
+                return res.status(200).json({ status: 'n8n_url_updated' });
+            }
         }
 
         // 3c. Command Cek Pengaturan Storyboard (Settings)
@@ -864,8 +880,24 @@ Foto referensi di atas adalah panduan visual nyata (Karakter / Produk / Lokasi).
             return res.status(200).json({ error: 'Empty AI Output' });
         }
 
-        // 7. Simpan Riwayat Pembuatan ke Supabase (Jika Tabel Tersedia)
-        if (supabaseKey && activeMember && activeMember.id !== 'admin') {
+        // 7. Simpan Riwayat Pembuatan (In-Memory Buffer & Supabase)
+        const targetUserId = (activeMember && activeMember.id && activeMember.id !== 'admin') 
+            ? activeMember.id 
+            : '7ab993cd-cc32-48e3-b323-0f81908c83a9';
+
+        const historyRecord = {
+            id: 'wa_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+            user_id: targetUserId,
+            phone_number: senderPhone,
+            sender_name: (activeMember && activeMember.full_name) || sender_name || 'Member',
+            prompt: userPrompt,
+            result: generatedScript,
+            created_at: new Date().toISOString()
+        };
+        recentWaHistory.unshift(historyRecord);
+        if (recentWaHistory.length > 50) recentWaHistory.pop();
+
+        if (supabaseKey) {
             try {
                 await fetch(`${supabaseUrl}/rest/v1/wa_storyboards`, {
                     method: 'POST',
@@ -876,9 +908,9 @@ Foto referensi di atas adalah panduan visual nyata (Karakter / Produk / Lokasi).
                         'Prefer': 'return=minimal'
                     },
                     body: JSON.stringify({
-                        user_id: activeMember.id,
+                        user_id: targetUserId,
                         phone_number: senderPhone,
-                        sender_name: activeMember.full_name || sender_name || 'Member',
+                        sender_name: (activeMember && activeMember.full_name) || sender_name || 'Member',
                         prompt: userPrompt,
                         result: generatedScript,
                         created_at: new Date().toISOString()
@@ -891,22 +923,30 @@ Foto referensi di atas adalah panduan visual nyata (Karakter / Produk / Lokasi).
 
         // 8. Cek & Kirim Otomatis ke n8n jika Toggle ON
         let n8nSuccess = false;
-        const isAutoForward = (activeMember && activeMember.n8n_auto_forward === true) || 
-                              process.env.N8N_AUTO_FORWARD === 'true';
-        const targetN8nUrl = (activeMember && activeMember.n8n_webhook_url) || 
+        const cachedN8n = userN8nConfigStore.get(senderPhone);
+        const isAutoForward = (cachedN8n && typeof cachedN8n.autoForward === 'boolean')
+            ? cachedN8n.autoForward
+            : ((activeMember && activeMember.n8n_auto_forward !== false) || process.env.N8N_AUTO_FORWARD === 'true');
+        const targetN8nUrl = (cachedN8n && cachedN8n.url) || 
+                             (activeMember && activeMember.n8n_webhook_url) || 
                              process.env.N8N_WEBHOOK_URL || 
-                             'https://n8n-zjopjxvznwqr.jkt2.sumopod.my.id/webhook/whatsapp-dispatch';
+                             'https://n8n-deripernandi.trendoraautomation.my.id/webhook/video-Trendora';
 
         if (isAutoForward && targetN8nUrl) {
             try {
                 const n8nPayload = {
                     event: 'wa_video_concept_created',
                     source: 'TRENDORA AI WhatsApp Bot',
-                    user_id: activeMember.id,
+                    user_id: targetUserId,
                     sender_number: senderPhone,
-                    sender_name: activeMember.full_name || sender_name || 'Member',
+                    sender_name: (activeMember && activeMember.full_name) || sender_name || 'Member',
                     prompt: userPrompt,
                     concept_script: generatedScript,
+                    aspect_ratio: activeSettings.aspectRatio,
+                    scene_count: activeSettings.sceneCount,
+                    duration_per_scene: activeSettings.durationPerScene,
+                    language: activeSettings.language,
+                    audio_mode: activeSettings.audioMode,
                     timestamp: new Date().toISOString()
                 };
                 const n8nResp = await fetch(targetN8nUrl, {
