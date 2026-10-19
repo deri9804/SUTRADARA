@@ -788,6 +788,10 @@ ${imagePart ? `\n📸 *REFERENSI VISUAL TERKUNCI (LOCK):*\n• Objek Terdeteksi:
 • 🎨 AI Image Prompt: [Prompt bahasa Inggris sinematik untuk Midjourney/Gemini/Flux${imagePart ? ' - sebutkan detail visual objek foto referensi secara konsisten' : ''}, aspect ratio --ar ${activeSettings.aspectRatio.replace(':', ':')}]
 • 🎥 Video Motion: [Instruksi gerakan kamera untuk Runway/Luma/Kling]
 
+📱 *CAPTION & HASHTAG MEDSOS (SIAP POSTING):*
+• Caption: [Tuliskan 1-3 baris caption engaging & persuasif siap posting di TikTok/Reels/Shorts]
+• Hashtags: [8-12 hashtag relevan diawali tanda #, misal: #fyp #reels #trendora]
+
 💡 *SARAN SUTRADARA:*
 [1-2 tips sound effect (SFX), warna lighting, atau musik latar yang cocok]
 
@@ -934,6 +938,17 @@ Foto referensi di atas adalah panduan visual nyata (Karakter / Produk / Lokasi).
 
         if (isAutoForward && targetN8nUrl) {
             try {
+                // Ekstraksi Caption & Hashtag dari hasil naskah jika ada
+                let waCaption = '';
+                let waHashtags = '';
+                const capMatch = generatedScript.match(/(?:•\s*Caption:\s*|\*Caption:\*\s*)([^\n]+(?:\n(?!(?:•|\*|💡|#))[^\n]+)*)/i);
+                if (capMatch) waCaption = capMatch[1].trim();
+                const hashMatch = generatedScript.match(/(?:•\s*Hashtags?:\s*|\*Hashtags?:\*\s*)([^\n]+)/i) || generatedScript.match(/(#[a-zA-Z0-9_]+(?:\s+#[a-zA-Z0-9_]+)+)/i);
+                if (hashMatch) waHashtags = hashMatch[1].trim();
+                const waTagsArray = waHashtags
+                    ? waHashtags.split(/\s+/).map(t => '#' + t.replace(/^#+/, '').trim()).filter(t => t.length > 1)
+                    : [];
+
                 const n8nPayload = {
                     event: 'wa_video_concept_created',
                     source: 'TRENDORA AI WhatsApp Bot',
@@ -942,6 +957,16 @@ Foto referensi di atas adalah panduan visual nyata (Karakter / Produk / Lokasi).
                     sender_name: (activeMember && activeMember.full_name) || sender_name || 'Member',
                     prompt: userPrompt,
                     concept_script: generatedScript,
+                    caption: waCaption,
+                    hashtags: waHashtags,
+                    hashtags_array: waTagsArray,
+                    social_caption: waCaption,
+                    social_hashtags: waHashtags,
+                    social_pack: {
+                        caption: waCaption,
+                        hashtags: waHashtags,
+                        tags: waTagsArray
+                    },
                     aspect_ratio: activeSettings.aspectRatio,
                     scene_count: activeSettings.sceneCount,
                     duration_per_scene: activeSettings.durationPerScene,

@@ -9207,6 +9207,38 @@ function startNewStoryboard() {
 /* ================================================================= */
 /* PIPELINE IMAGE-TO-VIDEO: INTEGRASI n8n WEBHOOK                   */
 /* ================================================================= */
+
+function getActiveSocialPack() {
+    const captionEl = document.getElementById('socialCaptionOut');
+    const hashtagEl = document.getElementById('socialHashtagOut');
+
+    let caption = captionEl ? captionEl.value.trim() : '';
+    if (!caption && state.directorData?.socialCaption) {
+        caption = String(state.directorData.socialCaption).trim();
+    }
+
+    let rawTags = hashtagEl ? hashtagEl.value.trim() : '';
+    if (!rawTags && state.directorData?.hashtags) {
+        if (Array.isArray(state.directorData.hashtags)) {
+            rawTags = state.directorData.hashtags.map(t => '#' + String(t).replace(/^#+/, '').trim()).join(' ');
+        } else {
+            rawTags = String(state.directorData.hashtags).trim();
+        }
+    }
+
+    // Normalisasi hashtags: buat array dan string rapi
+    const tagsArray = rawTags
+        ? rawTags.split(/\s+/).map(t => '#' + t.replace(/^#+/, '').trim()).filter(t => t.length > 1)
+        : [];
+    const formattedTags = tagsArray.join(' ');
+
+    return {
+        caption: caption,
+        hashtags: formattedTags,
+        hashtags_array: tagsArray
+    };
+}
+
 function buildScenePayloadForN8n(sceneIdx) {
     if (sceneIdx < 0 || !state.directorData?.scenes?.[sceneIdx]) return null;
     const scene = state.directorData.scenes[sceneIdx];
@@ -9214,6 +9246,7 @@ function buildScenePayloadForN8n(sceneIdx) {
     const videoPromptText = (document.getElementById('masterVideoPrompt_' + sceneIdx)?.value || scene.promptVideo || scene.camera_movement || '').trim();
     const dialogueText = (document.getElementById('dialogueText_' + sceneIdx)?.value || scene.dialogueOrNarration || '').trim();
     const imageDataUrl = getSceneImageDataUrl(sceneIdx) || '';
+    const social = getActiveSocialPack();
 
     return {
         scene_number: scene.sceneNumber || (sceneIdx + 1),
@@ -9222,6 +9255,9 @@ function buildScenePayloadForN8n(sceneIdx) {
         image_prompt: imagePromptText,
         video_prompt: videoPromptText,
         dialogue_or_narration: dialogueText,
+        caption: social.caption,
+        hashtags: social.hashtags,
+        hashtags_array: social.hashtags_array,
         image_data: imageDataUrl,
         has_image: Boolean(imageDataUrl && imageDataUrl.startsWith('data:image/')),
         duration: state.durationPerScene || '5s',
@@ -9250,12 +9286,23 @@ async function renderSceneToN8n(sceneIdx) {
     }
 
     try {
+        const social = getActiveSocialPack();
         const payload = {
             event: "render_scene_video",
             project_title: state.story || "Trendora AI Storyboard",
             mode: state.storyboardMode || "commercial",
             style: state.visualStyle || "Auto",
             episode: state.currentEpisode || 1,
+            caption: social.caption,
+            hashtags: social.hashtags,
+            hashtags_array: social.hashtags_array,
+            social_caption: social.caption,
+            social_hashtags: social.hashtags,
+            social_pack: {
+                caption: social.caption,
+                hashtags: social.hashtags,
+                tags: social.hashtags_array
+            },
             scene: sceneData,
             user: {
                 name: (typeof currentUser !== 'undefined' && currentUser?.name) ? currentUser.name : "Member",
@@ -9315,6 +9362,7 @@ async function renderAllScenesToN8n() {
     }
 
     try {
+        const social = getActiveSocialPack();
         const payload = {
             event: "render_full_storyboard",
             project_title: state.story || "Trendora AI Storyboard",
@@ -9325,6 +9373,16 @@ async function renderAllScenesToN8n() {
             duration_per_scene: state.durationPerScene || "5s",
             episode: state.currentEpisode || 1,
             total_scenes: scenesPayload.length,
+            caption: social.caption,
+            hashtags: social.hashtags,
+            hashtags_array: social.hashtags_array,
+            social_caption: social.caption,
+            social_hashtags: social.hashtags,
+            social_pack: {
+                caption: social.caption,
+                hashtags: social.hashtags,
+                tags: social.hashtags_array
+            },
             scenes: scenesPayload,
             user: {
                 name: (typeof currentUser !== 'undefined' && currentUser?.name) ? currentUser.name : "Member",
