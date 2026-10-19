@@ -9239,13 +9239,65 @@ function getActiveSocialPack() {
     };
 }
 
-function buildScenePayloadForN8n(sceneIdx) {
+async function compressImageForN8n(dataUrl, maxDimension = 1280, quality = 0.75) {
+    if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
+        return '';
+    }
+    // Jika ukuran dataUrl sudah ringan (< 350KB), tidak perlu dikompres ulang
+    if (dataUrl.length < 350000 && dataUrl.startsWith('data:image/jpeg')) {
+        return dataUrl;
+    }
+    return new Promise((resolve) => {
+        try {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                try {
+                    let { width, height } = img;
+                    if (!width || !height) {
+                        resolve(dataUrl);
+                        return;
+                    }
+                    if (width > maxDimension || height > maxDimension) {
+                        if (width > height) {
+                            height = Math.round((height * maxDimension) / width);
+                            width = maxDimension;
+                        } else {
+                            width = Math.round((width * maxDimension) / height);
+                            height = maxDimension;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressed = canvas.toDataURL('image/jpeg', quality);
+                    resolve(compressed);
+                } catch (e) {
+                    resolve(dataUrl);
+                }
+            };
+            img.onerror = () => resolve(dataUrl);
+            img.src = dataUrl;
+        } catch (_) {
+            resolve(dataUrl);
+        }
+    });
+}
+
+async function buildScenePayloadForN8n(sceneIdx, sceneCount = 1) {
     if (sceneIdx < 0 || !state.directorData?.scenes?.[sceneIdx]) return null;
     const scene = state.directorData.scenes[sceneIdx];
     const imagePromptText = (document.getElementById('masterImagePrompt_' + sceneIdx)?.value || scene.masterImagePrompt || '').trim();
     const videoPromptText = (document.getElementById('masterVideoPrompt_' + sceneIdx)?.value || scene.promptVideo || scene.camera_movement || '').trim();
     const dialogueText = (document.getElementById('dialogueText_' + sceneIdx)?.value || scene.dialogueOrNarration || '').trim();
-    const imageDataUrl = getSceneImageDataUrl(sceneIdx) || '';
+    const rawImageDataUrl = getSceneImageDataUrl(sceneIdx) || '';
+    
+    // Sesuaikan resolusi kompresi agar total payload tidak melebihi batas 1MB default server Nginx
+    const maxDim = sceneCount > 2 ? 1024 : 1280;
+    const quality = sceneCount > 2 ? 0.70 : 0.78;
+    const imageDataUrl = rawImageDataUrl ? await compressImageForN8n(rawImageDataUrl, maxDim, quality) : '';
     const social = getActiveSocialPack();
 
     return {
@@ -9265,6 +9317,54 @@ function buildScenePayloadForN8n(sceneIdx) {
     };
 }
 
+async function dispatchPayloadToN8n(webhookUrl, payload) {
+    // 1. Coba pengiriman langsung dari browser
+    try {
+        const directResp = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (directResp.ok) {
+            return { ok: true, status: directResp.status };
+        }
+        if (directResp.status === 413) {
+            throw new Error('Nginx 413: Ukuran payload gambar melebihi client_max_body_size (default 1MB) di server VPS n8n Anda.');
+        }
+        throw new Error(`HTTP error status ${directResp.status}`);
+    } catch (directErr) {
+        console.warn('[n8n Dispatch] Direct browser fetch failed:', directErr.message, 'Mencoba via server proxy fallback...');
+
+        // 2. Fallback melalui Serverless Proxy (Menghindari CORS & mendapatkan detail status riil)
+        try {
+            const proxyResp = await fetch('/api/dispatch-n8n', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    webhook_url: webhookUrl,
+                    payload: payload
+                })
+            });
+
+            const proxyData = await proxyResp.json().catch(() => ({}));
+            if (proxyResp.ok && proxyData.status === 'success') {
+                return { ok: true, status: proxyData.n8n_status || 200 };
+            }
+
+            if (proxyData.is_nginx_413 || proxyData.status === 413) {
+                throw new Error('Ukuran data gambar melebihi batas Nginx VPS n8n (413 Request Entity Too Large). Silakan tambahkan "client_max_body_size 100M;" di konfigurasi Nginx VPS n8n Anda atau kirim per adegan.');
+            }
+
+            throw new Error(proxyData.message || proxyData.error || `HTTP ${proxyResp.status}`);
+        } catch (proxyErr) {
+            if (proxyErr.message && proxyErr.message.includes('413')) {
+                throw proxyErr;
+            }
+            throw new Error(directErr.message || proxyErr.message);
+        }
+    }
+}
+
 async function renderSceneToN8n(sceneIdx) {
     const webhookUrl = getN8nWebhookUrl();
     if (!webhookUrl) {
@@ -9272,20 +9372,24 @@ async function renderSceneToN8n(sceneIdx) {
         return;
     }
 
-    const sceneData = buildScenePayloadForN8n(sceneIdx);
-    if (!sceneData) {
-        showCanvasNotice('Data scene tidak ditemukan.', 'error');
-        return;
-    }
-
     const btn = document.getElementById(`btnRenderSceneN8n_${sceneIdx}`);
     const originalHtml = btn ? btn.innerHTML : '';
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Mengirim ke n8n...</span>`;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Mengompres & Mengirim...</span>`;
     }
 
     try {
+        const sceneData = await buildScenePayloadForN8n(sceneIdx, 1);
+        if (!sceneData) {
+            showCanvasNotice('Data scene tidak ditemukan.', 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+            return;
+        }
+
         const social = getActiveSocialPack();
         const payload = {
             event: "render_scene_video",
@@ -9311,15 +9415,7 @@ async function renderSceneToN8n(sceneIdx) {
             timestamp: new Date().toISOString()
         };
 
-        const res = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-            throw new Error(`HTTP error status ${res.status}`);
-        }
+        await dispatchPayloadToN8n(webhookUrl, payload);
 
         showCanvasNotice(`Scene ${sceneData.scene_number} berhasil dikirim ke n8n untuk render video!`, 'success');
         if (btn) {
@@ -9331,7 +9427,11 @@ async function renderSceneToN8n(sceneIdx) {
         }
     } catch (err) {
         console.error("n8n Scene Render Error:", err);
-        showCanvasNotice(`Gagal mengirim Scene ke n8n: ${err.message}. Pastikan webhook n8n aktif.`, 'error');
+        let errorDetail = err.message || 'Cek koneksi n8n.';
+        if (errorDetail.toLowerCase().includes('failed to fetch')) {
+            errorDetail = 'Koneksi ditolak (Failed to fetch). Kemungkinan server Nginx VPS n8n menolak payload gambar (>1MB). Tambahkan "client_max_body_size 100M;" di config Nginx VPS Anda.';
+        }
+        showCanvasNotice(`Gagal mengirim Scene ke n8n: ${errorDetail}`, 'error');
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
@@ -9351,17 +9451,19 @@ async function renderAllScenesToN8n() {
         return;
     }
 
-    const scenes = state.directorData.scenes;
-    const scenesPayload = scenes.map((_, idx) => buildScenePayloadForN8n(idx)).filter(Boolean);
-
     const btn = document.getElementById('btnSendN8nAll') || document.getElementById('btnSendN8n');
     const originalHtml = btn ? btn.innerHTML : '';
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Mengirim ${scenesPayload.length} Scene...</span>`;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>Mengompres & Mengirim...</span>`;
     }
 
     try {
+        const scenes = state.directorData.scenes;
+        const scenesPayload = (await Promise.all(
+            scenes.map((_, idx) => buildScenePayloadForN8n(idx, scenes.length))
+        )).filter(Boolean);
+
         const social = getActiveSocialPack();
         const payload = {
             event: "render_full_storyboard",
@@ -9391,15 +9493,7 @@ async function renderAllScenesToN8n() {
             timestamp: new Date().toISOString()
         };
 
-        const res = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-            throw new Error(`HTTP error status ${res.status}`);
-        }
+        await dispatchPayloadToN8n(webhookUrl, payload);
 
         showCanvasNotice(`Semua scene (${scenesPayload.length} scene) berhasil dikirim ke n8n untuk render video!`, 'success');
         if (btn) {
@@ -9411,7 +9505,11 @@ async function renderAllScenesToN8n() {
         }
     } catch (err) {
         console.error("n8n Full Render Error:", err);
-        showCanvasNotice(`Gagal mengirim ke n8n: ${err.message}. Pastikan webhook n8n aktif.`, 'error');
+        let errorDetail = err.message || 'Cek koneksi n8n.';
+        if (errorDetail.toLowerCase().includes('failed to fetch')) {
+            errorDetail = 'Koneksi ditolak (Failed to fetch). Kemungkinan server Nginx VPS n8n menolak payload gambar (>1MB). Tambahkan "client_max_body_size 100M;" di config Nginx VPS Anda.';
+        }
+        showCanvasNotice(`Gagal mengirim ke n8n: ${errorDetail}`, 'error');
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
