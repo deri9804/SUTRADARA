@@ -9216,6 +9216,12 @@ function getActiveSocialPack() {
     if (!caption && state.directorData?.socialCaption) {
         caption = String(state.directorData.socialCaption).trim();
     }
+    if (!caption && Array.isArray(state.episodeSeries)) {
+        const ep = state.episodeSeries.find(e => e.episode === state.currentEpisode);
+        if (ep?.breakdown?.socialCaption) {
+            caption = String(ep.breakdown.socialCaption).trim();
+        }
+    }
 
     let rawTags = hashtagEl ? hashtagEl.value.trim() : '';
     if (!rawTags && state.directorData?.hashtags) {
@@ -9225,12 +9231,33 @@ function getActiveSocialPack() {
             rawTags = String(state.directorData.hashtags).trim();
         }
     }
+    if (!rawTags && Array.isArray(state.episodeSeries)) {
+        const ep = state.episodeSeries.find(e => e.episode === state.currentEpisode);
+        if (ep?.breakdown?.hashtags) {
+            if (Array.isArray(ep.breakdown.hashtags)) {
+                rawTags = ep.breakdown.hashtags.map(t => '#' + String(t).replace(/^#+/, '').trim()).join(' ');
+            } else {
+                rawTags = String(ep.breakdown.hashtags).trim();
+            }
+        }
+    }
 
     // Normalisasi hashtags: buat array dan string rapi
-    const tagsArray = rawTags
+    let tagsArray = rawTags
         ? rawTags.split(/\s+/).map(t => '#' + t.replace(/^#+/, '').trim()).filter(t => t.length > 1)
         : [];
+
+    // Fallback cerdas jika tags kosong
+    if (tagsArray.length === 0) {
+        tagsArray = ['#TrendoraAI', '#Storyboard', '#AIContent', '#VideoCreator', '#FYP'];
+    }
     const formattedTags = tagsArray.join(' ');
+
+    // Fallback cerdas jika caption masih kosong
+    if (!caption) {
+        const rawTitle = (state.story || 'Trendora AI Storyboard').split('\n')[0].replace(/^#+\s*/, '').trim();
+        caption = rawTitle.slice(0, 150);
+    }
 
     return {
         caption: caption,
