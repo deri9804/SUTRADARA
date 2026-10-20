@@ -380,6 +380,7 @@ async function generateImageViaGemini(promptText, aspectRatio = '1:1', refImageB
 async function chatWithGeminiAI(userMessage, systemInstruction, apiKey) {
     if (!apiKey) return null;
     const candidateModels = [
+        'gemini-3.5-flash',
         'gemini-3.1-flash-lite',
         'gemini-flash-latest',
         'gemini-3-flash-preview',
@@ -780,6 +781,7 @@ ${imagePart ? '📸 *REFERENSI VISUAL TERKUNCI (LOCK):*\n• Objek Terdeteksi: [
                 if (imagePart) contentsParts.push(imagePart);
 
                 const candidateModels = [
+                    'gemini-3.5-flash',
                     'gemini-3.1-flash-lite',
                     'gemini-flash-latest',
                     'gemini-3-flash-preview',
