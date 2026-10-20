@@ -393,7 +393,7 @@ async function chatWithGeminiAI(userMessage, systemInstruction, apiKey) {
             const resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(6000),
+                signal: AbortSignal.timeout(15000),
                 body: JSON.stringify({
                     contents: [
                         { role: 'user', parts: [{ text: systemInstruction }, { text: userMessage }] }
@@ -795,7 +795,7 @@ ${imagePart ? '📸 *REFERENSI VISUAL TERKUNCI (LOCK):*\n• Objek Terdeteksi: [
                         const resp = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            signal: AbortSignal.timeout(9000),
+                            signal: AbortSignal.timeout(25000),
                             body: JSON.stringify({
                                 contents: [{ role: 'user', parts: contentsParts }],
                                 generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
