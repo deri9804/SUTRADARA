@@ -455,9 +455,20 @@ module.exports = async function handler(req, res) {
         const rawPhone = (sender_number || phone_number || body.from || body.sender || body.phone || body.senderPhone || '').replace(/[^0-9]/g, '');
         const senderPhone = normalizePhone(rawPhone);
 
-        // Ambil session key dengan fallback ke session WhatsApp aktif milik Deri (Slot 19)
+        // Ambil session key dengan prioritas: Sesi kustom user -> Sesi dari gateway (body/headers/query) -> Fallback default
+        const customBoundSession = userSessionStore.get(senderPhone + '_custom_session');
         let activeSessionKey = String(
-            session_key || body.session_id || body.sessionId || body.session || process.env.TRENDORA_WA_SESSION || '3_dev_57824_1788062608'
+            customBoundSession ||
+            session_key ||
+            body.session_id ||
+            body.sessionId ||
+            body.session ||
+            body.device_id ||
+            body.deviceId ||
+            (req.headers && req.headers['x-session-key']) ||
+            (req.query && req.query.session_key) ||
+            process.env.TRENDORA_WA_SESSION ||
+            '3_dev_57824_1788062608'
         );
         if (activeSessionKey === '1' || activeSessionKey === 'undefined' || !activeSessionKey) {
             activeSessionKey = '3_dev_57824_1788062608';
@@ -615,6 +626,32 @@ module.exports = async function handler(req, res) {
                 if (activeMember) activeMember.gemini_api_key = cleanKey;
                 await sendWaReply(`🔑 *Gemini API Key berhasil disimpan untuk akun Anda!* 🚀`);
                 return res.status(200).json({ status: 'gemini_key_saved' });
+            }
+        }
+
+        if (lowerPrompt === 'bot status' || lowerPrompt === 'wa status' || lowerPrompt === '/status') {
+            const hasGemini = Boolean(memberGeminiKey);
+            const cachedN8n = userN8nConfigStore.get(senderPhone);
+            const isCurrentlyOn = cachedN8n && typeof cachedN8n.autoForward === 'boolean' ? cachedN8n.autoForward : ((activeMember && activeMember.n8n_auto_forward !== false) || true);
+            await sendWaReply(
+                `🤖 *STATUS BOT WHATSAPP PRIBADI ANDA:*\n\n` +
+                `• Member: *${memberName}*\n` +
+                `• Nomor Terhubung: \`${senderPhone}\`\n` +
+                `• Sesi Gateway Aktif: \`${activeSessionKey}\`\n` +
+                `• Lisensi Trendora AI: *RESMI AKTIF 🟢*\n` +
+                `• Gemini AI Key: *${hasGemini ? 'Terpasang 🟢' : 'Default Sistem ⚡'}*\n` +
+                `• n8n Video Render: *${isCurrentlyOn ? 'Aktif (ON) 🟢' : 'Mati (OFF) ⚪'}*\n\n` +
+                `_Ketik \`menu\` untuk mulai membuat konten visual / video!_`
+            );
+            return res.status(200).json({ status: 'bot_status_checked' });
+        }
+
+        if (/^(?:set\s+session\s+|session\s+key[:\s]+)/i.test(userPrompt)) {
+            const cleanSession = userPrompt.replace(/^(?:set\s+session\s+|session\s+key[:\s]+)/i, '').trim();
+            if (cleanSession.length >= 3) {
+                userSessionStore.set(senderPhone + '_custom_session', cleanSession);
+                await sendWaReply(`📱 *Session Key Trendora WA Anda berhasil disetel ke:*\n\`${cleanSession}\` 🟢\nSemua balasan bot Anda akan otomatis keluar melalui sesi ini!`);
+                return res.status(200).json({ status: 'session_key_saved' });
             }
         }
 
@@ -831,6 +868,8 @@ ${imagePart ? '📸 *REFERENSI VISUAL TERKUNCI (LOCK):*\n• Objek Terdeteksi: [
                     sender_number: senderPhone,
                     phone_number: senderPhone,
                     wa_number: senderPhone,
+                    session_key: activeSessionKey,
+                    wa_session_key: activeSessionKey,
                     user: {
                         name: memberName,
                         phone: senderPhone,
