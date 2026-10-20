@@ -378,9 +378,11 @@ async function generateImageViaGemini(promptText, aspectRatio = '1:1', refImageB
 
 // Generate Conversational Q&A / Response via Gemini AI
 async function chatWithGeminiAI(userMessage, systemInstruction, apiKey) {
+    if (!apiKey) return null;
     const candidateModels = [
-        'gemini-flash-latest',
         'gemini-2.0-flash',
+        'gemini-flash-latest',
+        'gemini-1.5-flash',
         'gemini-3.1-flash-lite',
         'gemini-3-flash-preview'
     ];
@@ -391,6 +393,7 @@ async function chatWithGeminiAI(userMessage, systemInstruction, apiKey) {
             const resp = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(6000),
                 body: JSON.stringify({
                     contents: [
                         { role: 'user', parts: [{ text: systemInstruction }, { text: userMessage }] }
@@ -778,8 +781,9 @@ ${imagePart ? '📸 *REFERENSI VISUAL TERKUNCI (LOCK):*\n• Objek Terdeteksi: [
                 if (imagePart) contentsParts.push(imagePart);
 
                 const candidateModels = [
-                    'gemini-flash-latest',
                     'gemini-2.0-flash',
+                    'gemini-flash-latest',
+                    'gemini-1.5-flash',
                     'gemini-3.1-flash-lite',
                     'gemini-3-flash-preview'
                 ];
@@ -791,6 +795,7 @@ ${imagePart ? '📸 *REFERENSI VISUAL TERKUNCI (LOCK):*\n• Objek Terdeteksi: [
                         const resp = await fetch(url, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
+                            signal: AbortSignal.timeout(9000),
                             body: JSON.stringify({
                                 contents: [{ role: 'user', parts: contentsParts }],
                                 generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
