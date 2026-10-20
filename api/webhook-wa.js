@@ -380,11 +380,10 @@ async function generateImageViaGemini(promptText, aspectRatio = '1:1', refImageB
 async function chatWithGeminiAI(userMessage, systemInstruction, apiKey) {
     if (!apiKey) return null;
     const candidateModels = [
-        'gemini-2.0-flash',
-        'gemini-flash-latest',
-        'gemini-1.5-flash',
         'gemini-3.1-flash-lite',
-        'gemini-3-flash-preview'
+        'gemini-flash-latest',
+        'gemini-3-flash-preview',
+        'gemini-3.8-flash'
     ];
 
     for (const model of candidateModels) {
@@ -781,11 +780,10 @@ ${imagePart ? '📸 *REFERENSI VISUAL TERKUNCI (LOCK):*\n• Objek Terdeteksi: [
                 if (imagePart) contentsParts.push(imagePart);
 
                 const candidateModels = [
-                    'gemini-2.0-flash',
-                    'gemini-flash-latest',
-                    'gemini-1.5-flash',
                     'gemini-3.1-flash-lite',
-                    'gemini-3-flash-preview'
+                    'gemini-flash-latest',
+                    'gemini-3-flash-preview',
+                    'gemini-3.8-flash'
                 ];
 
                 let generatedScript = '';
