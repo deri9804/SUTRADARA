@@ -381,6 +381,27 @@ function navGoVideoToPrompt() {
     showVideoToPromptView();
 }
 
+function navGoMotionTransfer() {
+    setActiveViewKey('videoTools-motionTransfer');
+    setActiveSidebarItem('videoTools-motionTransfer');
+    expandNavGroup('videoTools');
+    showMotionTransferView();
+}
+
+function showMotionTransferView() {
+    if (!currentUser.loggedIn || currentUser.status !== 'active') {
+        showAuthView();
+        return;
+    }
+    hideMainViews();
+    showAppHeader();
+    const v = document.getElementById('motionTransferView');
+    if (v) v.classList.remove('hidden');
+    document.getElementById('userNavMenu').classList.remove('hidden');
+    document.getElementById('userDropdown').classList.add('hidden');
+    if (typeof initMotionTransferUI === 'function') initMotionTransferUI();
+}
+
 function showVideoToPromptView() {
     if (!currentUser.loggedIn || currentUser.status !== 'active') {
         showAuthView();
@@ -664,6 +685,11 @@ function restoreActiveView(role) {
             expandNavGroup('videoTools');
             setActiveSidebarItem('videoTools-toPrompt');
             if (typeof showVideoToPromptView === 'function') showVideoToPromptView();
+            return true;
+        case 'videoTools-motionTransfer':
+            expandNavGroup('videoTools');
+            setActiveSidebarItem('videoTools-motionTransfer');
+            if (typeof showMotionTransferView === 'function') showMotionTransferView();
             return true;
         case 'admin':
             showAdminView();

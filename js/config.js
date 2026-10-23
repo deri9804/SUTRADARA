@@ -822,6 +822,7 @@ if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
             'nav.voiceOver': { id: 'Voice Over', en: 'Voice Over' },
             'nav.videoTools': { id: 'VIDEO TOOLS', en: 'VIDEO TOOLS' },
             'nav.gabungkanVideo': { id: 'Gabungkan Video', en: 'Merge Video' },
+            'nav.motionTransfer': { id: 'Motion Transfer', en: 'Motion Transfer' },
             'nav.history': { id: 'HISTORY', en: 'HISTORY' },
             'nav.adminPanel': { id: 'ADMIN PANEL', en: 'ADMIN PANEL' },
             'nav.settings': { id: 'SETTINGS', en: 'SETTINGS' },

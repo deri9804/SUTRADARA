@@ -1419,11 +1419,11 @@ function renderImageGenHistoryList(records, tool) {
     const list = document.getElementById('imageGenHistoryList');
     if (!list) return;
     if (!records || records.length === 0) {
-        const tlabel = tool === 'foto' ? 'FotoGenerate' : tool === 'thumbnail' ? 'Thumbnail' : tool === 'infographic' ? 'Infographic' : tool === 'ugc' ? 'UGC / Product Ads' : tool === 'character' ? 'Character Sheet' : tool === 'poster' ? 'Poster & Social Media' : tool === 'voiceover' ? 'Voice Over' : tool === 'autoads' ? 'Auto Ads' : tool === 'video-merge' ? 'Gabungkan Video' : 'tool ini';
+        const tlabel = tool === 'foto' ? 'FotoGenerate' : tool === 'thumbnail' ? 'Thumbnail' : tool === 'infographic' ? 'Infographic' : tool === 'ugc' ? 'UGC / Product Ads' : tool === 'character' ? 'Character Sheet' : tool === 'poster' ? 'Poster & Social Media' : tool === 'voiceover' ? 'Voice Over' : tool === 'autoads' ? 'Auto Ads' : tool === 'video-merge' ? 'Gabungkan Video' : tool === 'motion-transfer' ? 'Motion Transfer' : 'tool ini';
         list.innerHTML = '<div class="text-center text-gray-500 text-xs py-6">Belum ada history untuk ' + tlabel + '.</div>';
         return;
     }
-    const toolLabel = (t) => t === 'foto' ? 'FotoGenerate' : t === 'thumbnail' ? 'Thumbnail' : t === 'infographic' ? 'Infographic' : t === 'ugc' ? 'UGC / Product Ads' : t === 'character' ? 'Character Sheet' : t === 'poster' ? 'Poster & Social Media' : t === 'voiceover' ? 'Voice Over' : t === 'autoads' ? 'Auto Ads' : t === 'video-merge' ? 'Gabungkan Video' : t;
+    const toolLabel = (t) => t === 'foto' ? 'FotoGenerate' : t === 'thumbnail' ? 'Thumbnail' : t === 'infographic' ? 'Infographic' : t === 'ugc' ? 'UGC / Product Ads' : t === 'character' ? 'Character Sheet' : t === 'poster' ? 'Poster & Social Media' : t === 'voiceover' ? 'Voice Over' : t === 'autoads' ? 'Auto Ads' : t === 'video-merge' ? 'Gabungkan Video' : t === 'motion-transfer' ? 'Motion Transfer' : t;
     list.innerHTML = records.map(r => {
         const ts = r.ts || '';
         const kind = r.tool || r.type;
