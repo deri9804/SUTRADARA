@@ -269,6 +269,37 @@ async function exportUnifiedHistoryHtml() {
             assets: getHistoryExportAssets(record)
         }));
         const exportedAt = new Date().toLocaleString('id-ID');
+        const blueprintItems = records.map((rec, idx) => {
+            let p = rec.payload || {};
+            try { p = JSON.parse(JSON.stringify(p)); } catch (e) { p = {}; }
+            return {
+                blueprintId: 'sutradara-blueprint-' + idx,
+                unifiedId: rec.id,
+                type: rec.type,
+                title: rec.title,
+                summary: rec.summary,
+                ts: rec.rawRecord && rec.rawRecord.ts ? rec.rawRecord.ts : '',
+                payload: p
+            };
+        });
+        const blueprintScripts = blueprintItems.map((item, idx) => {
+            const json = JSON.stringify(item).replace(/<\/script/gi, '<\\/script');
+            return `<script type="application/json" id="sutradara-blueprint-${idx}">${json}<\/script>`;
+        }).join('');
+        const manifest = {
+            schema: 'sutradara-ai-export/v1',
+            exportedAt: exportedAt,
+            projectCount: exportRecords.length,
+            projects: blueprintItems.map((item, idx) => ({
+                blueprintId: 'sutradara-blueprint-' + idx,
+                unifiedId: item.unifiedId,
+                type: item.type,
+                title: item.title,
+                summary: item.summary,
+                ts: item.ts
+            }))
+        };
+        const manifestScript = `<script type="application/json" id="sutradara-export-manifest">${JSON.stringify(manifest).replace(/<\/script/gi, '<\\/script')}<\/script>`;
         const sections = exportRecords.map((record, index) => {
             const assets = (record.type === 'Storyboard' ? [] : record.assets).map(asset => asset.kind === 'audio'
                 ? `<div class="asset"><p>${escapeHtml(asset.label)}</p><audio controls src="${escapeHtml(asset.src)}"></audio></div>`
@@ -308,7 +339,7 @@ function copyExportPrompt(id,button){
    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(field.value).then(done).catch(function(){document.execCommand('copy');done();});}
    else{document.execCommand('copy');done();}
 }
-<\/script></head><body><main><h1>TRENDORA AI — Export History</h1><p>Diekspor: ${escapeHtml(exportedAt)} · ${exportRecords.length} item</p>${sections}</main></body></html>`;
+<\/script></head><body><main><h1>TRENDORA AI — Export History</h1><p>Diekspor: ${escapeHtml(exportedAt)} · ${exportRecords.length} item</p>${sections}</main>${manifestScript}${blueprintScripts}</body></html>`;
         const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -323,6 +354,199 @@ function copyExportPrompt(id,button){
         alert('History gagal diekspor. Silakan coba lagi.');
     }
 }
+
+/* ----------------------------------------------------------------- */
+/* V5.2: HISTORY HTML IMPORT & RE-IMPORT PIPELINE                    */
+/* ----------------------------------------------------------------- */
+        // the user pick which project(s) to bring back into IndexedDB.
+        let historyHtmlImportBuffer = null;
+        let historyHtmlImportProjects = [];
+
+        function triggerHistoryHtmlImport() {
+            const input = document.getElementById('historyHtmlFileInput');
+            if (!input) return;
+            input.value = '';
+            input.click();
+        }
+
+        function handleHistoryHtmlFileSelect(input) {
+            const file = input.files && input.files[0];
+            input.value = '';
+            if (!file) return;
+            parseHistoryHtmlFile(file).catch((err) => {
+                console.error('Failed to parse history HTML:', err);
+                alert('File HTML tidak terbaca. Pastikan ini hasil Export HTML dari Sutradara AI.');
+            });
+        }
+
+        async function parseHistoryHtmlFile(file) {
+            const text = await file.text();
+            if (!text || text.indexOf('sutradara-export-manifest') === -1) {
+                alert('File ini bukan hasil Export HTML dari Sutradara AI (manifest tidak ditemukan).');
+                return;
+            }
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            const manifestEl = doc.getElementById('sutradara-export-manifest');
+            if (!manifestEl) {
+                alert('Manifest blueprint tidak ditemukan dalam file.');
+                return;
+            }
+            let manifest = null;
+            try {
+                manifest = JSON.parse(manifestEl.textContent || '{}');
+            } catch (e) {
+                alert('Manifest blueprint rusak. File tidak bisa dibaca.');
+                return;
+            }
+            const projects = Array.isArray(manifest.projects) ? manifest.projects : [];
+            historyHtmlImportBuffer = null;
+            historyHtmlImportProjects = [];
+            projects.forEach((proj) => {
+                if (!proj || !proj.blueprintId) return;
+                const scriptEl = doc.getElementById(proj.blueprintId);
+                if (!scriptEl) return;
+                let blueprint = null;
+                try {
+                    blueprint = JSON.parse(scriptEl.textContent || '{}');
+                } catch (e) {
+                    blueprint = null;
+                }
+                if (!blueprint) return;
+                historyHtmlImportProjects.push({ manifestEntry: proj, blueprint: blueprint });
+            });
+            if (!historyHtmlImportProjects.length) {
+                alert('Tidak ada blueprint project yang bisa dibaca dari file ini.');
+                return;
+            }
+            historyHtmlImportBuffer = { fileName: file.name, manifest: manifest };
+            renderHistoryHtmlImportModal();
+            openHistoryHtmlImportModal();
+        }
+
+        function renderHistoryHtmlImportModal() {
+            const list = document.getElementById('historyHtmlImportList');
+            if (!list) return;
+            if (!historyHtmlImportProjects.length) {
+                list.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">Belum ada project.</p>';
+                return;
+            }
+            const accentByType = {
+                storyboard: 'purple',
+                foto: 'pink',
+                thumbnail: 'violet',
+                infographic: 'blue',
+                ugc: 'orange',
+                character: 'fuchsia',
+                product: 'teal',
+                poster: 'rose',
+                voiceover: 'cyan',
+                autoads: 'emerald',
+                'video-merge': 'amber'
+            };
+            const labelByType = HISTORY_FILTER_LABELS || {};
+            list.innerHTML = historyHtmlImportProjects.map((item, idx) => {
+                const entry = item.manifestEntry || {};
+                const accent = accentByType[entry.type] || 'gray';
+                const label = labelByType[entry.type] || entry.type || 'Project';
+                const ts = entry.ts ? new Date(entry.ts).toLocaleString('id-ID') : '';
+                return `
+                    <div class="flex items-center justify-between gap-3 rounded-xl border border-${accent}-500/30 bg-${accent}-500/5 p-3 hover:border-${accent}-400/60 transition">
+                        <div class="min-w-0">
+                            <div class="text-[11px] font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-folder text-${accent}-300"></i>
+                                ${escapeHtml(entry.title || label)}
+                            </div>
+                            <div class="text-[10px] text-gray-400 mt-0.5 truncate">${escapeHtml(label)} — ${escapeHtml(ts)}</div>
+                            <div class="text-[10px] text-gray-500 mt-0.5 truncate">${escapeHtml(entry.summary || '')}</div>
+                        </div>
+                        <button onclick="importHistoryProjectAt(${idx})" class="text-[10px] font-bold uppercase tracking-wider bg-${accent}-500/20 hover:bg-${accent}-500/35 text-${accent}-200 px-3 py-2 rounded-lg border border-${accent}-500/40 transition shrink-0">
+                            <i class="fa-solid fa-download mr-1"></i>Pulihkan
+                        </button>
+                    </div>`;
+            }).join('');
+        }
+
+        function openHistoryHtmlImportModal() {
+            const modal = document.getElementById('historyHtmlImportModal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeHistoryHtmlImportModal() {
+            const modal = document.getElementById('historyHtmlImportModal');
+            if (modal) modal.classList.add('hidden');
+            historyHtmlImportBuffer = null;
+            historyHtmlImportProjects = [];
+        }
+
+        async function importHistoryProjectAt(idx) {
+            const item = historyHtmlImportProjects[idx];
+            if (!item || !item.blueprint) return;
+            const payload = item.blueprint.payload || {};
+            const type = item.blueprint.type || (item.manifestEntry && item.manifestEntry.type);
+            const originalUnifiedId = item.blueprint.unifiedId || (item.manifestEntry && item.manifestEntry.unifiedId) || '';
+            try {
+                if (type === 'storyboard') {
+                    if (!payload.id || !payload.breakdown) {
+                        alert('Blueprint storyboard tidak lengkap.');
+                        return;
+                    }
+                    const restored = Object.assign({}, payload, {
+                        ownerId: getHistoryOwnerId(),
+                        timestamp: payload.timestamp || item.blueprint.ts || new Date().toISOString(),
+                        schemaVersion: payload.schemaVersion || 'V4.0'
+                    });
+                    const ok = await saveToHistory(restored);
+                    if (!ok) {
+                        alert('Gagal menyimpan project ke history.');
+                        return;
+                    }
+                } else {
+                    if (!payload.id || !payload.tool) {
+                        alert('Blueprint project tidak lengkap.');
+                        return;
+                    }
+                    const restored = Object.assign({}, payload, {
+                        ownerId: getHistoryOwnerId(),
+                        ts: payload.ts || item.blueprint.ts || new Date().toISOString(),
+                        // Re-stamp id so the imported record cannot collide
+                        // with an existing local record that happens to share
+                        // the same exported id.
+                        id: 'imp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
+                    });
+                    const ok = await saveImageGenHistory(restored);
+                    if (!ok) {
+                        alert('Gagal menyimpan project ke history.');
+                        return;
+                    }
+                }
+                // Remove the picked project from the picker so the user can
+                // import others without seeing duplicates.
+                historyHtmlImportProjects.splice(idx, 1);
+                renderHistoryHtmlImportModal();
+                renderUnifiedHistoryView();
+                const label = (item.manifestEntry && item.manifestEntry.title) || 'project';
+                showCanvasNotice('Project dipulihkan: ' + label, 'success');
+                // If the user imported a storyboard and nothing is currently
+                // loaded into the workspace, auto-load it so work can resume.
+                if (type === 'storyboard' && !state.directorData) {
+                    try {
+                        await restoreHistoryRecord(payload.id);
+                        setActiveViewKey('storyboard-create');
+                        setActiveSidebarItem('storyboard-create');
+                        showAppView();
+                    } catch (e) {
+                        console.warn('Auto-restore after import failed:', e);
+                    }
+                }
+                if (!historyHtmlImportProjects.length) {
+                    closeHistoryHtmlImportModal();
+                }
+            } catch (err) {
+                console.error('Failed to import project:', err);
+                alert('Gagal memulihkan project: ' + (err && err.message ? err.message : 'Unknown error'));
+            }
+        }
 
 async function deleteUnifiedHistoryRecord(unifiedId) {
     try {

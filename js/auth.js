@@ -1,3 +1,17 @@
+
+function resolveAuthRedirectTo() {
+    try {
+        const host = (typeof window !== 'undefined' && window.location && window.location.hostname) || '';
+        const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '';
+        if (isLocal) {
+            const origin = window.location.origin + window.location.pathname;
+            console.info('[Auth] Using local origin for recovery redirect:', origin);
+            return origin;
+        }
+    } catch (e) { /* ignore */ }
+    return (typeof APP_PUBLIC_BASE_URL !== 'undefined' && APP_PUBLIC_BASE_URL) ? APP_PUBLIC_BASE_URL : (typeof window !== 'undefined' && window.location ? window.location.origin + window.location.pathname : 'https://sutradara-swart.vercel.app');
+}
+
 // Gemini Canvas blocks WebSocket connections; the database watcher is the
 // reliable cross-device fallback for this single-file deployment.
 const AUTH_ENABLE_REALTIME = false;
@@ -61,6 +75,7 @@ async function handleSupabaseUserSession(user) {
             currentUser.loggedIn = false;
             teardownDeviceRealtimeSubscription();
             updateUserHeaderUI();
+        if (typeof restoreUiLanguageOnLogin === 'function') restoreUiLanguageOnLogin();
             try {
                 await supabaseClient.auth.signOut();
             } catch (signOutErr) {
@@ -571,7 +586,7 @@ async function handleForgotPassword() {
 
     try {
         const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.href
+            redirectTo: resolveAuthRedirectTo()
         });
         if (error) throw error;
         const errorDiv = document.getElementById('authErrorMessage');
@@ -627,7 +642,7 @@ function resetUserSession() {
 /* ROUTING & UI VISIBILITY                                           */
 /* ----------------------------------------------------------------- */
 
-const MAIN_VIEW_IDS = ['sessionCheckView', 'authView', 'homeView', 'creatorFormView', 'loadingView', 'resultView', 'adminView', 'imageGenView', 'voiceOverView', 'autoAdsView', 'videoToolsView', 'videoToPromptView', 'historyView'];
+const MAIN_VIEW_IDS = ['settingsView', 'sessionCheckView', 'authView', 'homeView', 'creatorFormView', 'loadingView', 'resultView', 'adminView', 'imageGenView', 'voiceOverView', 'autoAdsView', 'videoToolsView', 'videoToPromptView', 'historyView'];
 
 function hideMainViews() {
     MAIN_VIEW_IDS.forEach(id => {
@@ -831,4 +846,113 @@ function handleLogoClick() {
         showAuthView();
     }
 }
-
+
+
+/* ----------------------------------------------------------------- */
+/* V5.2: SET NEW PASSWORD MODAL (SUPABASE RECOVERY FLOW)              */
+/* ----------------------------------------------------------------- */
+let passwordRecoverySession = null;
+let passwordRecoveryEmail = '';
+
+function setNewPasswordNotice(text, type) {
+    const notice = document.getElementById('setNewPasswordNotice');
+    if (!notice) return;
+    if (!text) {
+        notice.classList.add('hidden');
+        notice.textContent = '';
+        return;
+    }
+    notice.classList.remove('hidden');
+    notice.textContent = text;
+    if (type === 'error') {
+        notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-red-300 bg-red-500/10 border-red-500/20 block';
+    } else if (type === 'success') {
+        notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-emerald-300 bg-emerald-500/10 border-emerald-500/20 block';
+    } else {
+        notice.className = 'text-[11px] p-3 rounded-xl border font-medium text-amber-300 bg-amber-500/10 border-amber-500/20 block';
+    }
+}
+
+function openSetNewPasswordModal(session) {
+    const modal = document.getElementById('setNewPasswordModal');
+    if (!modal) return;
+    passwordRecoverySession = session || null;
+    const emailEl = document.getElementById('setNewPasswordEmail');
+    const userEmail = (session && session.user && session.user.email) || passwordRecoveryEmail || '';
+    if (emailEl) emailEl.textContent = userEmail || '—';
+    const pwdEl = document.getElementById('setNewPasswordInput');
+    const cfmEl = document.getElementById('setNewPasswordConfirm');
+    if (pwdEl) pwdEl.value = '';
+    if (cfmEl) cfmEl.value = '';
+    setNewPasswordNotice('', null);
+    modal.classList.remove('hidden');
+    setTimeout(() => { try { pwdEl && pwdEl.focus(); } catch (e) {} }, 60);
+}
+
+function closeSetNewPasswordModal() {
+    const modal = document.getElementById('setNewPasswordModal');
+    if (modal) modal.classList.add('hidden');
+    try {
+        if (supabaseClient) supabaseClient.auth.signOut();
+    } catch (e) { /* ignore */ }
+    passwordRecoverySession = null;
+}
+
+function toggleSetNewPasswordVisibility() {
+    const pwdEl = document.getElementById('setNewPasswordInput');
+    const icon = document.getElementById('setNewPasswordEyeIcon');
+    if (!pwdEl || !icon) return;
+    if (pwdEl.type === 'password') {
+        pwdEl.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        pwdEl.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+async function submitSetNewPassword() {
+    if (!supabaseClient) {
+        setNewPasswordNotice('Supabase Auth belum terkonfigurasi.', 'error');
+        return;
+    }
+    const pwd = (document.getElementById('setNewPasswordInput') || {}).value || '';
+    const cfm = (document.getElementById('setNewPasswordConfirm') || {}).value || '';
+    if (pwd.length < 6) {
+        setNewPasswordNotice('Password minimal 6 karakter.', 'error');
+        return;
+    }
+    if (pwd !== cfm) {
+        setNewPasswordNotice('Konfirmasi password tidak sama dengan password baru.', 'error');
+        return;
+    }
+    const submitBtn = document.getElementById('btnSubmitSetNewPassword');
+    const cancelBtn = document.getElementById('btnCancelSetNewPassword');
+    if (submitBtn) submitBtn.disabled = true;
+    if (cancelBtn) cancelBtn.disabled = true;
+    setNewPasswordNotice('Menyimpan password baru...', 'info');
+    try {
+        const { error } = await supabaseClient.auth.updateUser({ password: pwd });
+        if (error) throw error;
+        setNewPasswordNotice('Password berhasil diubah. Mengarahkan ke halaman login...', 'success');
+        try { await supabaseClient.auth.signOut(); } catch (e) { /* ignore */ }
+        setTimeout(() => {
+            closeSetNewPasswordModal();
+            try {
+                if (window.history && window.history.replaceState) {
+                    const cleanUrl = window.location.origin + window.location.pathname + window.location.search;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                }
+            } catch (e) { /* ignore */ }
+            if (typeof showAuthView === 'function') showAuthView();
+        }, 1400);
+    } catch (err) {
+        setNewPasswordNotice(err && err.message ? err.message : 'Gagal mengubah password.', 'error');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
+    }
+}
+

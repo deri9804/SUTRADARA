@@ -305,12 +305,11 @@
                     <span class="nav-label flex-1 text-left">Admin Panel</span>
                     <span class="nav-tooltip">Admin Panel</span>
                 </button>
-                <button onclick="notifyComingSoon('Settings')" data-tooltip="Settings" class="nav-top-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-200 hover:bg-gray-500/15 transition-all duration-200">
-                    <span class="nav-icon-wrap bg-gray-500/15 border border-gray-500/30">
-                        <i class="fa-solid fa-gear text-gray-400 text-xs"></i>
+                <button onclick="navGoSettings()" data-tooltip="Settings" data-nav-key="settings" class="nav-top-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-gray-200 hover:bg-cyan-500/15 transition-all duration-200">
+                    <span class="nav-icon-wrap bg-cyan-500/15 border border-cyan-500/30">
+                        <i class="fa-solid fa-gear text-cyan-400 text-xs"></i>
                     </span>
-                    <span class="nav-label flex-1 text-left">Settings</span>
-                    <span class="nav-soon-badge text-[8px] bg-gray-500/15 text-gray-300 border border-gray-500/30 px-1.5 py-0.5 rounded-full font-extrabold uppercase">Soon</span>
+                    <span class="nav-label flex-1 text-left" data-i18n="nav.settings">Settings</span>
                     <span class="nav-tooltip">Settings</span>
                 </button>
                 <button onclick="handleLogout()" data-tooltip="Logout" class="nav-top-item w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-red-400 hover:bg-red-500/10 transition-all duration-200">
@@ -846,6 +845,46 @@
                     </table>
                 </div>
                 <div id="adminPaginationBar"></div>
+            </div>
+        </div>
+
+        <!-- VIEW 4B: SETTINGS VIEW (V5.2) -->
+        <div id="settingsView" class="hidden w-full max-w-3xl mx-auto space-y-6">
+            <div class="text-center">
+                <p class="text-[10px] text-cyan-300 uppercase tracking-[0.25em] font-extrabold" data-i18n="settings.kicker">App Settings</p>
+                <h1 class="text-2xl lg:text-3xl font-black text-white mt-2">
+                    <i class="fa-solid fa-gear text-gray-300"></i>
+                    <span data-i18n="settings.title">Pengaturan</span>
+                </h1>
+                <p class="text-xs text-gray-400 mt-2" data-i18n="settings.subtitle">Sesuaikan tampilan dan bahasa aplikasi.</p>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6 border border-cyan-500/20 shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-500"></div>
+                <h3 class="font-extrabold text-sm text-white flex items-center space-x-2.5 border-b border-white/10 pb-4 tracking-wide">
+                    <i class="fa-solid fa-language text-cyan-400 text-lg"></i>
+                    <span data-i18n="settings.language.title">Bahasa UI</span>
+                </h3>
+                <p class="text-[11px] text-gray-400 mt-3 leading-relaxed" data-i18n="settings.language.desc">Pilih bahasa untuk semua menu, tombol, dan label aplikasi. Pilihan tersimpan per user sehingga tetap aktif setelah logout/login ulang.</p>
+                <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label class="cursor-pointer rounded-2xl border border-white/10 bg-black/30 hover:border-cyan-400/60 hover:bg-cyan-500/5 transition p-4 flex items-start gap-3" data-ui-lang-card="id">
+                        <input type="radio" name="uiLanguageRadio" value="id" class="mt-1 accent-cyan-500" onchange="setUiLanguage('id')">
+                        <div class="min-w-0">
+                            <div class="text-sm font-extrabold text-white">Indonesia</div>
+                            <div class="text-[10px] text-gray-400 mt-0.5" data-i18n="settings.language.idHint">Default. Cocok untuk pengguna Indonesia.</div>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer rounded-2xl border border-white/10 bg-black/30 hover:border-cyan-400/60 hover:bg-cyan-500/5 transition p-4 flex items-start gap-3" data-ui-lang-card="en">
+                        <input type="radio" name="uiLanguageRadio" value="en" class="mt-1 accent-cyan-500" onchange="setUiLanguage('en')">
+                        <div class="min-w-0">
+                            <div class="text-sm font-extrabold text-white">English</div>
+                            <div class="text-[10px] text-gray-400 mt-0.5" data-i18n="settings.language.enHint">For international / non-Indonesian users. Switches all menus and the default storyboard language to English.</div>
+                        </div>
+                    </label>
+                </div>
+                <div class="mt-4 text-[10px] text-gray-500 font-mono">
+                    <span data-i18n="settings.language.current">Saat ini</span>: <span id="uiLanguageCurrentLabel" class="text-cyan-300 font-bold">—</span>
+                </div>
             </div>
         </div>
 
@@ -1537,6 +1576,49 @@
                     <div id="characterGenResults" class="space-y-5"></div>
                 </div>
 
+                <!-- Product Sheet Form (Phase 6A.9 - V5.2) -->
+                <div id="productGenForm" class="hidden space-y-6">
+
+                    <div class="glass-card rounded-2xl p-6 border border-teal-500/20 shadow-xl space-y-5 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500"></div>
+                        <h3 class="font-extrabold text-sm text-white flex items-center space-x-2.5 border-b border-white/10 pb-4 tracking-wide">
+                            <i class="fa-solid fa-boxes-stacked text-teal-400 text-lg"></i><span data-i18n="productSheet.title">PRODUCT SHEET</span>
+                        </h3>
+                        <p class="text-xs text-gray-400 leading-relaxed">Satu produk = satu sheet terpisah. Setiap sheet berisi 7 panel dari produk yang sama: tampak depan besar di kiri, dua angle di kanan (samping + 3/4), dan empat panel detail di baris bawah (atas, bawah, label/logo close-up, in-context). Output otomatis dipakai sebagai referensi produk di Storyboard & Video biar bentuk, warna, dan label konsisten di semua scene. <span class="text-teal-300/90">Wajib: nama + deskripsi + minimal 1 foto referensi. Dimensi, palet, material opsional tapi sangat disarankan untuk hasil terbaik.</span></p>
+
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 mb-2 flex items-center gap-1.5 uppercase tracking-wide">
+                                <i class="fa-solid fa-cubes text-teal-400"></i> Jumlah Produk
+                            </label>
+                            <div id="selectorProductCount" class="flex bg-black/50 p-1.5 rounded-xl border border-white/10 shadow-inner">
+                                <button data-val="1" class="flex-1 py-1.5 text-[11px] rounded-lg text-gray-400 hover:text-white transition">1</button>
+                                <button data-val="2" class="flex-1 py-1.5 text-[11px] rounded-lg text-gray-400 hover:text-white transition">2</button>
+                                <button data-val="3" class="flex-1 py-1.5 text-[11px] rounded-lg text-gray-400 hover:text-white transition">3</button>
+                            </div>
+                        </div>
+
+                        <div id="productSlots" class="space-y-4"></div>
+
+                        <div class="pt-8 pb-4 flex flex-col items-center gap-3">
+                            <button id="btnGenerateProduct" onclick="startProductSheetGeneration()" class="btn-generate btn-gradient-primary text-white font-extrabold text-sm rounded-2xl py-3 px-6 min-w-[280px] mx-auto uppercase tracking-wider">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                <span data-i18n="productSheet.btnGenerate">Generate Product Sheet</span>
+                            </button>
+                            <div class="flex justify-center gap-2">
+                                <button onclick="openImageGenHistoryModal('product')" class="text-[10px] bg-white/5 hover:bg-teal-500/15 text-teal-300 px-3 py-1.5 rounded-lg border border-white/10 hover:border-teal-500/50 transition font-bold uppercase tracking-wide">
+                                    <i class="fa-solid fa-clock-rotate-left mr-1"></i>History
+                                </button>
+                                <button onclick="resetProductSheetForm()" class="text-[10px] bg-white/5 hover:bg-white/10 text-gray-300 px-3 py-1.5 rounded-lg border border-white/10 transition font-bold uppercase tracking-wide">
+                                    <i class="fa-solid fa-rotate-left mr-1"></i>Reset Form
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Per-tool results -->
+                    <div id="productGenResults" class="space-y-5"></div>
+                </div>
+
                 <!-- Poster & Social Media Form -->
                 <div id="posterGenForm" class="hidden space-y-6">
 
@@ -1954,7 +2036,14 @@
                             </h3>
                             <span id="videoMergeResultMeta" class="text-[10px] text-emerald-300 font-mono">ready</span>
                         </div>
-                        <video id="videoMergePreview" controls class="w-full rounded-2xl bg-black border border-white/10 max-h-[420px]"></video>
+                        <div class="relative">
+                            <video id="videoMergePreview" controls playsinline preload="metadata" class="w-full rounded-2xl bg-black border border-white/10 max-h-[420px]"></video>
+                            <button id="videoMergePlayOverlay" type="button" aria-label="Putar video" class="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/45 transition rounded-2xl group">
+                                <span class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-emerald-500/90 group-hover:bg-emerald-400 text-white flex items-center justify-center shadow-[0_10px_40px_rgba(16,185,129,0.55)] ring-4 ring-white/15 transition-transform group-hover:scale-105">
+                                    <i class="fa-solid fa-play text-3xl sm:text-4xl ml-1.5"></i>
+                                </span>
+                            </button>
+                        </div>
                         <div class="flex justify-end">
                             <button id="btnDownloadMergedVideo" onclick="downloadMergedVideo()" class="text-[10px] bg-white/5 hover:bg-cyan-600/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:border-cyan-500/50 transition font-bold uppercase tracking-wide">
                                 <i class="fa-solid fa-download mr-1"></i>Download Video
@@ -2326,6 +2415,7 @@
                             <option value="infographic">Infographic</option>
                             <option value="ugc">UGC / Product Ads</option>
                             <option value="character">Character Sheet</option>
+                            <option value="product">Product Sheet</option>
                             <option value="poster">Poster & Social Media</option>
                             <option value="voiceover">Voice Over</option>
                             <option value="autoads">Auto Ads</option>
@@ -2910,19 +3000,19 @@
     <!-- APPLICATION JAVASCRIPT CORE                                       -->
     <!-- ================================================================= -->
     <!-- Application Modular Scripts -->
-    <script src="js/config.js?v=5.3.0"></script>
-    <script src="js/state.js?v=5.3.0"></script>
-    <script src="js/storage.js?v=5.3.0"></script>
-    <script src="js/auth.js?v=5.3.0"></script>
-    <script src="js/admin.js?v=5.3.0"></script>
-    <script src="js/ui.js?v=5.3.0"></script>
-    <script src="js/image-gen.js?v=5.3.0"></script>
-    <script src="js/voiceover.js?v=5.3.0"></script>
-    <script src="js/autoads.js?v=5.3.0"></script>
-    <script src="js/video-tools.js?v=5.3.0"></script>
-    <script src="js/video-to-prompt.js?v=5.3.0"></script>
-    <script src="js/storyboard.js?v=5.3.0"></script>
-    <script src="js/history.js?v=5.3.0"></script>
-    <script src="js/app.js?v=5.3.0"></script>
+    <script src="js/config.js?v=5.4.0"></script>
+    <script src="js/state.js?v=5.4.0"></script>
+    <script src="js/storage.js?v=5.4.0"></script>
+    <script src="js/auth.js?v=5.4.0"></script>
+    <script src="js/admin.js?v=5.4.0"></script>
+    <script src="js/ui.js?v=5.4.0"></script>
+    <script src="js/image-gen.js?v=5.4.0"></script>
+    <script src="js/voiceover.js?v=5.4.0"></script>
+    <script src="js/autoads.js?v=5.4.0"></script>
+    <script src="js/video-tools.js?v=5.4.0"></script>
+    <script src="js/video-to-prompt.js?v=5.4.0"></script>
+    <script src="js/storyboard.js?v=5.4.0"></script>
+    <script src="js/history.js?v=5.4.0"></script>
+    <script src="js/app.js?v=5.4.0"></script>
 </body>
 </html>

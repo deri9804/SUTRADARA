@@ -1596,4 +1596,45 @@ async function persistImageGenLatest(tool, dataUrl, promptUsed, configSnapshot, 
     return rec;
 }
 
-
+
+
+/* ----------------------------------------------------------------- */
+/* V5.2: VIDEO MERGE PLAY OVERLAY                                    */
+/* ----------------------------------------------------------------- */
+function wireVideoMergePlayOverlay() {
+    const video = document.getElementById('videoMergePreview');
+    const overlay = document.getElementById('videoMergePlayOverlay');
+    if (!video || !overlay) return;
+    const icon = overlay.querySelector('i');
+    const showOverlay = () => {
+        if (icon) { icon.classList.remove('fa-pause'); icon.classList.add('fa-play'); }
+        overlay.classList.remove('hidden');
+    };
+    const hideOverlay = () => {
+        if (icon) { icon.classList.remove('fa-play'); icon.classList.add('fa-pause'); }
+        overlay.classList.add('hidden');
+    };
+    overlay.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!video.src) return;
+        if (video.paused || video.ended) {
+            const playPromise = video.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+                playPromise.catch((err) => console.warn('[Video Merge] overlay play failed:', err && err.message));
+            }
+        } else {
+            video.pause();
+        }
+    });
+    video.addEventListener('play', hideOverlay);
+    video.addEventListener('pause', showOverlay);
+    video.addEventListener('ended', showOverlay);
+    video.addEventListener('loadeddata', () => { if (!video.paused) hideOverlay(); else showOverlay(); });
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wireVideoMergePlayOverlay);
+} else {
+    wireVideoMergePlayOverlay();
+}
+

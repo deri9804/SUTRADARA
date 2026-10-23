@@ -14,7 +14,8 @@ const currentUser = {
     email: null,
     role: "member",
     status: "active",
-    loggedIn: false
+    loggedIn: false,
+    uiLanguage: 'id'
 };
 
 // Helper to determine the currently active user ID (from memory or Supabase session)
@@ -780,4 +781,293 @@ if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
         console.warn("[Supabase Auth] Client creation deferred or failed:", err.message);
     }
 }
-
+
+
+/* ----------------------------------------------------------------- */
+/* V5.2: BILINGUAL UI ENGINE (INDONESIAN / ENGLISH)                   */
+/* ----------------------------------------------------------------- */
+
+        function uiLanguageStorageKey() {
+            if (currentUser && currentUser.loggedIn && currentUser.userId) return 'sutradara.uiLang.' + currentUser.userId;
+            if (currentUser && currentUser.email) return 'sutradara.uiLang.' + currentUser.email;
+            return 'sutradara.uiLang.guest';
+        }
+        function loadUiLanguageFromStorage() {
+            try {
+                const v = window.localStorage.getItem(uiLanguageStorageKey());
+                if (v === 'en' || v === 'id') return v;
+            } catch (e) { /* ignore */ }
+            return 'id';
+        }
+        function saveUiLanguageToStorage(lang) {
+            try {
+                if (lang === 'en' || lang === 'id') {
+                    window.localStorage.setItem(uiLanguageStorageKey(), lang);
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        // V5.2: bilingual UI string dictionary. Add new keys here. Anything
+        // not in this map falls back to the original Indonesian string so we
+        // never break the existing copy.
+        const UI_STRINGS = {
+            'nav.generateImage': { id: 'GENERATE IMAGE', en: 'GENERATE IMAGE' },
+            'nav.fotoGenerate': { id: 'FotoGenerate', en: 'Photo Studio' },
+            'nav.thumbnail': { id: 'Thumbnail', en: 'Thumbnail' },
+            'nav.infographic': { id: 'Infographic', en: 'Infographic' },
+            'nav.ugc': { id: 'UGC / Product Ads', en: 'UGC / Product Ads' },
+            'nav.characterSheet': { id: 'Character Sheet', en: 'Character Sheet' },
+            'nav.productSheet': { id: 'Product Sheet', en: 'Product Sheet' },
+            'nav.poster': { id: 'Poster & Social Media', en: 'Poster & Social Media' },
+            'nav.voiceOver': { id: 'Voice Over', en: 'Voice Over' },
+            'nav.videoTools': { id: 'VIDEO TOOLS', en: 'VIDEO TOOLS' },
+            'nav.gabungkanVideo': { id: 'Gabungkan Video', en: 'Merge Video' },
+            'nav.history': { id: 'HISTORY', en: 'HISTORY' },
+            'nav.adminPanel': { id: 'ADMIN PANEL', en: 'ADMIN PANEL' },
+            'nav.settings': { id: 'SETTINGS', en: 'SETTINGS' },
+            'nav.settingsSoon': { id: 'SOON', en: 'SOON' },
+            'nav.logout': { id: 'LOGOUT', en: 'LOGOUT' },
+            'nav.storyboard': { id: 'STORYBOARD', en: 'STORYBOARD' },
+            'storyboard.create': { id: 'Pembuatan Video', en: 'Create Video' },
+            'storyboard.commercial': { id: 'Pembuatan Video Iklan', en: 'Ad Creation' },
+            'storyboard.drama': { id: 'Pembuatan Konten Kreatif', en: 'Creative Content' },
+            'storyboard.animation': { id: 'Animasi Miniatur', en: 'Miniature Animation' },
+            'storyboard.shortFilm': { id: 'Pembuatan Short Film', en: 'Short Film' },
+            'storyboard.education': { id: 'Edukasi', en: 'Education' },
+            'storyboard.documentary': { id: 'Dokumenter', en: 'Documentary' },
+            'storyboard.custom': { id: 'Custom Storyboard', en: 'Custom Storyboard' },
+            'topbar.appName': { id: 'SUTRADARA AI', en: 'SUTRADARA AI' },
+            'topbar.appTagline': { id: 'AI Storyboard & Video Director', en: 'AI Storyboard & Video Director' },
+            'history.title': { id: 'History', en: 'History' },
+            'history.subtitle': { id: 'Semua aktivitas generate tersimpan rapi di sini. Klik card untuk membuka kembali.', en: 'All generated activities are saved here. Click a card to reopen.' },
+            'history.filterAll': { id: 'All', en: 'All' },
+            'history.export': { id: 'Export HTML', en: 'Export HTML' },
+            'history.upload': { id: 'Upload HTML', en: 'Upload HTML' },
+            'history.clear': { id: 'Clear History', en: 'Clear History' },
+            'common.cancel': { id: 'Batal', en: 'Cancel' },
+            'common.save': { id: 'Simpan', en: 'Save' },
+            'common.continue': { id: 'Lanjut', en: 'Continue' },
+            'common.generate': { id: 'Generate', en: 'Generate' },
+            'common.download': { id: 'Download', en: 'Download' },
+            'common.edit': { id: 'Edit', en: 'Edit' },
+            'common.retry': { id: 'Coba Lagi', en: 'Retry' },
+            'common.copy': { id: 'Copy', en: 'Copy' },
+            'common.copied': { id: 'Copied', en: 'Copied' },
+            'common.back': { id: 'Kembali', en: 'Back' },
+            'common.close': { id: 'Tutup', en: 'Close' },
+            'common.reset': { id: 'Reset', en: 'Reset' },
+            'common.yes': { id: 'Ya', en: 'Yes' },
+            'common.no': { id: 'Tidak', en: 'No' },
+            'common.processing': { id: 'Memproses...', en: 'Processing...' },
+            'common.ready': { id: 'Siap', en: 'Ready' },
+            'common.error': { id: 'Terjadi kesalahan', en: 'Something went wrong' },
+            'videoMerge.title': { id: 'Gabungkan Video', en: 'Merge Video' },
+            'videoMerge.subtitle': { id: 'Susun klip adegan, tambahkan voice over jika ada, lalu ekspor satu video final dengan crossfade otomatis.', en: 'Arrange scene clips, optionally add voice-over, and export one final video with automatic crossfade.' },
+            'videoMerge.history': { id: 'History', en: 'History' },
+            'videoMerge.uploadLabel': { id: 'Upload Video Scene', en: 'Upload Scene Video' },
+            'videoMerge.voiceOver': { id: 'Voice Over Optional', en: 'Voice Over (Optional)' },
+            'videoMerge.btnGabung': { id: 'Gabungkan', en: 'Merge' },
+            'videoMerge.btnDownload': { id: 'Download Video', en: 'Download Video' },
+            'videoMerge.resultTitle': { id: 'Hasil Video', en: 'Video Result' },
+            'productSheet.title': { id: 'PRODUCT SHEET', en: 'PRODUCT SHEET' },
+            'productSheet.count': { id: 'Jumlah Produk', en: 'Number of Products' },
+            'productSheet.name': { id: 'Nama Produk', en: 'Product Name' },
+            'productSheet.desc': { id: 'Deskripsi Produk', en: 'Product Description' },
+            'productSheet.dim': { id: 'Dimensi / Ukuran (opsional)', en: 'Dimensions / Size (optional)' },
+            'productSheet.palette': { id: 'Palet Warna', en: 'Color Palette' },
+            'productSheet.material': { id: 'Material', en: 'Material' },
+            'productSheet.refs': { id: 'Foto Referensi', en: 'Reference Photos' },
+            'productSheet.btnGenerate': { id: 'Generate Product Sheet', en: 'Generate Product Sheet' },
+            'productSheet.btnReset': { id: 'Reset Form', en: 'Reset Form' },
+            'characterSheet.title': { id: 'CHARACTER SHEET', en: 'CHARACTER SHEET' },
+            'characterSheet.count': { id: 'Jumlah Karakter', en: 'Number of Characters' },
+            'characterSheet.name': { id: 'Nama Karakter', en: 'Character Name' },
+            'characterSheet.btnGenerate': { id: 'Generate Character Sheet', en: 'Generate Character Sheet' },
+            'voiceover.title': { id: 'Voice Over', en: 'Voice Over' },
+            'voiceover.subtitle': { id: 'Buat narasi voice over Bahasa Indonesia Gen-Z atau English untuk video, storyboard, atau iklan.', en: 'Generate Indonesian Gen-Z or English voice-over narration for your video, storyboard, or ad.' },
+            // Storyboard sub-items in the sidebar nav
+            'nav.storyboard.commercial': { id: 'Video Iklan', en: 'Ad Video' },
+            'nav.storyboard.commercialFull': { id: 'Pembuatan Video Iklan', en: 'Ad Video Creation' },
+            'nav.storyboard.drama': { id: 'Konten Kreatif', en: 'Creative Content' },
+            'nav.storyboard.dramaFull': { id: 'Pembuatan Konten Kreatif', en: 'Creative Content Production' },
+            'nav.storyboard.animation': { id: 'Animasi', en: 'Animation' },
+            'nav.storyboard.animationFull': { id: 'Pembuatan Video Animasi', en: 'Animated Video Production' },
+            // User dropdown
+            'userMenu.myAccount': { id: 'Akun Saya', en: 'My Account' },
+            'userMenu.logout': { id: 'Keluar', en: 'Logout' },
+            'userMenu.loggedInAs': { id: 'LOGGED IN AS', en: 'LOGGED IN AS' },
+            'userMenu.admin': { id: 'ADMIN', en: 'ADMIN' },
+            'userMenu.member': { id: 'MEMBER', en: 'MEMBER' },
+            // Home view
+            'home.kicker': { id: 'Sutradara AI Home', en: 'Sutradara AI Home' },
+            'home.greeting': { id: 'Selamat datang kembali Boss', en: 'Welcome back, Boss' },
+            'home.tagline': { id: 'Udah mandi belom? Klo sudah ready, yuk kita mulai berkarya sekarang, klik satu menu di kiri untuk memulai pertempuran hari ini...', en: "Ready to create? Pick a menu on the left and let's start your project today." },
+            // Storyboard form
+            'storyboard.productionMode': { id: 'Storyboard Production Mode', en: 'Storyboard Production Mode' },
+            'storyboard.storyboardLabel': { id: 'Ceritakan Video yang Ingin Kamu Buat', en: 'Tell Us the Video You Want to Make' },
+            'storyboard.storyboardHint': { id: 'Auto membaca tujuan, konflik, dan bahasa cerita user sebelum menyusun alur.', en: 'Auto-detects intent, conflict, and language from your story before planning the flow.' },
+            'storyboard.storyboardPlaceholder': { id: 'Tulis cerita / ide / brief / naskah kamu di sini... Semakin detail semakin bagus hasilnya. Contoh: Seorang pria menawarkan kopi kepada calon pembeli di kafe bergaya retro...', en: 'Type your story / idea / brief / script here... The more detail, the better the result. Example: A man offers coffee to a potential customer in a retro-style cafe...' },
+            'storyboard.settings': { id: 'STORYBOARD SETTINGS', en: 'STORYBOARD SETTINGS' },
+            'userMenu.langLabel': { id: 'Bahasa UI', en: 'UI Language' },
+            'userMenu.langId': { id: 'Indonesia (default)', en: 'Indonesian (default)' },
+            'userMenu.langEn': { id: 'English', en: 'English' },
+            // Settings page
+            'settings.kicker': { id: 'App Settings', en: 'App Settings' },
+            'settings.title': { id: 'Pengaturan', en: 'Settings' },
+            'settings.subtitle': { id: 'Sesuaikan tampilan dan bahasa aplikasi.', en: 'Customize the app appearance and language.' },
+            'settings.language.title': { id: 'Bahasa UI', en: 'UI Language' },
+            'settings.language.desc': { id: 'Pilih bahasa untuk semua menu, tombol, dan label aplikasi. Pilihan tersimpan per user sehingga tetap aktif setelah logout/login ulang.', en: 'Pick the language for all menus, buttons, and labels. The choice is saved per user so it persists after logout/login.' },
+            'settings.language.idHint': { id: 'Default. Cocok untuk pengguna Indonesia.', en: 'Default. Suitable for Indonesian users.' },
+            'settings.language.enHint': { id: 'Untuk pengguna internasional / non-Indonesia. Mengubah semua menu dan default bahasa storyboard ke English.', en: 'For international / non-Indonesian users. Switches all menus and the default storyboard language to English.' },
+            'settings.language.current': { id: 'Saat ini', en: 'Current' }
+        };
+
+        function tUi(key, fallback) {
+            const entry = UI_STRINGS && UI_STRINGS[key];
+            if (!entry) return fallback != null ? fallback : key;
+            const lang = (currentUser && currentUser.uiLanguage) || 'id';
+            return entry[lang] || entry.id || (fallback != null ? fallback : key);
+        }
+
+        function applyUiLanguage() {
+            // Toggle the i18n attribute so CSS can react if needed.
+            const lang = (currentUser && currentUser.uiLanguage) || 'id';
+            try { document.documentElement.setAttribute('data-ui-lang', lang); } catch (e) {}
+            // Walk every element with a data-i18n="key" attribute and replace
+            // its text content with the localized string. Missing keys leave
+            // the element untouched, so the rest of the UI keeps its original
+            // Indonesian copy.
+            const nodes = document.querySelectorAll('[data-i18n]');
+            nodes.forEach((el) => {
+                const key = el.getAttribute('data-i18n');
+                if (!key) return;
+                const entry = UI_STRINGS[key];
+                if (!entry) return;
+                el.textContent = entry[lang] || entry.id || key;
+            });
+            // Also translate text inputs / textareas that use data-i18n-placeholder.
+            const phNodes = document.querySelectorAll('[data-i18n-placeholder]');
+            phNodes.forEach((el) => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (!key) return;
+                const entry = UI_STRINGS[key];
+                if (!entry) return;
+                el.setAttribute('placeholder', entry[lang] || entry.id || key);
+            });
+            // Keep the language switcher dropdown in sync with the active lang.
+            const langSel = document.getElementById('uiLanguageSelect');
+            if (langSel && langSel.value !== lang) langSel.value = lang;
+        }
+
+        function setUiLanguage(lang, opts) {
+            if (lang !== 'en' && lang !== 'id') return;
+            currentUser.uiLanguage = lang;
+            saveUiLanguageToStorage(lang);
+            applyUiLanguage();
+            // Update the dropdown UI if it's open somewhere
+            const sel = document.getElementById('uiLanguageSelect');
+            if (sel) sel.value = lang;
+            // V5.2: when the user switches the app to English, the storyboard
+            // spoken language default should follow so the dialog defaults
+            // to English. When the user switches back to Indonesian, restore
+            // the Gen-Z default (only if the user hadn't manually picked a
+            // different language yet — we detect that by checking whether the
+            // current value is one of the auto-managed defaults).
+            if (lang === 'en') {
+                if (typeof state !== 'undefined' && state && state.language) {
+                    if (!/^english/i.test(state.language)) {
+                        const prev = state.language;
+                        state.language = 'English';
+                        // Persist the new default so the next fresh storyboard
+                        // also starts in English.
+                        try {
+                            const sel2 = document.getElementById('selectLanguage');
+                            if (sel2) {
+                                sel2.value = 'English';
+                                if (typeof state !== 'undefined' && state) {
+                                    // remember the user explicitly moved it
+                                    state.__uiLanguageAutoSwitchedFrom = prev;
+                                }
+                            }
+                        } catch (e) { /* ignore */ }
+                    }
+                }
+            } else if (lang === 'id') {
+                if (typeof state !== 'undefined' && state && state.language && state.__uiLanguageAutoSwitchedFrom) {
+                    state.language = state.__uiLanguageAutoSwitchedFrom;
+                    const sel2 = document.getElementById('selectLanguage');
+                    if (sel2) sel2.value = state.__uiLanguageAutoSwitchedFrom;
+                    state.__uiLanguageAutoSwitchedFrom = null;
+                }
+            }
+            if (!opts || !opts.silent) {
+                showCanvasNotice(lang === 'en' ? 'UI language set to English. Default storyboard language switched to English.' : 'Bahasa UI disetel ke Indonesia.', 'info');
+            }
+            // Keep the Settings page radios + the user dropdown widget in sync.
+            try { syncSettingsLanguageRadios(); } catch (e) { /* ignore */ }
+        }
+
+        function restoreUiLanguageOnLogin() {
+            const stored = loadUiLanguageFromStorage();
+            currentUser.uiLanguage = stored;
+            applyUiLanguage();
+            const sel = document.getElementById('uiLanguageSelect');
+            if (sel) sel.value = stored;
+        }
+
+        // V5.2: when the app re-renders large sections (e.g. nav state change,
+        // history view, storyboard results) the new nodes are not in the DOM
+        // when the initial applyUiLanguage() runs. A MutationObserver re-runs
+        // the i18n pass for each new subtree so freshly added buttons / labels
+        // / tooltips immediately reflect the chosen language.
+        function setupUiLanguageObserver() {
+            if (typeof MutationObserver === 'undefined') return;
+            try {
+                const observer = new MutationObserver((mutations) => {
+                    if (!currentUser || currentUser.uiLanguage === 'id') return;
+                    let needsReapply = false;
+                    for (const m of mutations) {
+                        if (m.addedNodes && m.addedNodes.length) {
+                            for (const n of m.addedNodes) {
+                                if (n.nodeType === 1 && (n.hasAttribute && (n.hasAttribute('data-i18n') || n.hasAttribute('data-i18n-placeholder') || (n.querySelector && (n.querySelector('[data-i18n]') || n.querySelector('[data-i18n-placeholder]')))))) {
+                                    needsReapply = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (needsReapply) break;
+                    }
+                    if (needsReapply) {
+                        try { applyUiLanguage(); } catch (e) { /* swallow */ }
+                    }
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+            } catch (e) { /* ignore */ }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupUiLanguageObserver);
+        } else {
+            setupUiLanguageObserver();
+        }
+
+
+
+// V5.2 (Isu #1): Indonesian chat shorthand that speech models cannot
+// pronounce. The video model synthesises the [AUDIO / DIALOGUE] block
+// verbatim and the Gemini TTS voice-over reads the script verbatim, so
+// these tokens are read literally: "loe" becomes "lo-e" and "bgt"
+// becomes "baget". Only the audio path is rewritten — the on-screen
+// script textarea keeps whatever the user or the director wrote.
+function toPronounceableIndonesian(value) {
+    const text = String(value || '');
+    if (!text) return text;
+    return text
+        .replace(/\bloe\b/gi, 'lo')
+        .replace(/\bb(?:gt|tg|ngt|ng)(?:2|nya)?\b/g, 'banget')
+        .replace(/\bsngat\b/gi, 'sangat')
+        .replace(/\bklo\b/gi, 'kalau')
+        .replace(/\bkyk\b/gi, 'kayak')
+        .replace(/\bdmn\b/gi, 'darimana')
+        .replace(/\byg\b/gi, 'yang');
+}
+

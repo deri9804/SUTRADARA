@@ -61,7 +61,7 @@ function buildVoiceOverPromptText() {
         if (secs > 0) durationHint = 'Target total spoken duration: approximately ' + secs + ' seconds. Keep natural conversational pacing and short natural pauses; do not speak unnaturally slowly or stretch syllables just to fill the target.';
     }
     const tempoHint = 'TEMPO CONTROL: Deliver at approximately ' + tempo + ' of natural speech. Keep articulation clear, pauses short and human, and never slow down unnaturally. The player will preserve the selected tempo during playback.';
-    const script = (v.script || '').trim();
+    const script = toPronounceableIndonesian((v.script || '').trim());
     return [
         'Language: ' + langName,
         'DELIVERY STYLE: ' + styleName + '. ' + styleGuide,

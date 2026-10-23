@@ -8,6 +8,7 @@ const IMAGE_GEN_TOOLS = [
     { slug: 'infographic', name: 'Infographic', desc: 'Infografis edukatif dengan hierarchy data yang jelas.', icon: 'fa-chart-pie', active: true },
     { slug: 'ugc', name: 'UGC / Product Ads', desc: 'Mockup produk, UGC content, marketplace composition.', icon: 'fa-bag-shopping', active: true },
     { slug: 'character', name: 'Character Sheet', desc: 'Character reference konsisten untuk project.', icon: 'fa-user-astronaut', active: true },
+    { slug: 'product', name: 'Product Sheet', desc: 'Satu sheet 7 panel untuk konsistensi produk di video/iklan.', icon: 'fa-boxes-stacked', active: true },
     { slug: 'poster', name: 'Poster & Social Media', desc: 'Poster event, banner, feed Instagram, dll.', icon: 'fa-palette', active: true }
 ];
 
@@ -55,6 +56,7 @@ function selectImageGenTool(slug) {
         infographic: 'infographicGenForm',
         ugc: 'productAdsGenForm',
         character: 'characterGenForm',
+        product: 'productGenForm',
         poster: 'posterGenForm'
     };
     Object.values(formIds).forEach(id => {
@@ -68,6 +70,7 @@ function selectImageGenTool(slug) {
         }
     });
     if (slug === 'character' && typeof renderCharSlots === 'function') renderCharSlots();
+    if (slug === 'product' && typeof renderProductSlots === 'function') renderProductSlots();
 }
 
 function notifyComingSoon(name) {
@@ -1870,6 +1873,536 @@ function resetCharacterSheetForm() {
     }
     showImageGenNotice('Form direset.', 'info');
 }
+
+/* ========================================== */
+/* PHASE 6A.9: PRODUCT SHEET GENERATOR (V5.2) */
+/* ========================================== */
+
+        const PRODUCT_SHEET_RATIO = '3:4';
+        const PRODUCT_SHEET_REF_MAX = 8;
+
+        function emptyProductSlot() {
+            return { name: '', description: '', dimensions: '', palette: '', material: '', refs: [] };
+        }
+
+        function snapshotProductSlot(slot) {
+            return {
+                name: (slot && slot.name) || '',
+                description: (slot && slot.description) || '',
+                dimensions: (slot && slot.dimensions) || '',
+                palette: (slot && slot.palette) || '',
+                material: (slot && slot.material) || '',
+                refs: ((slot && slot.refs) || []).slice()
+            };
+        }
+
+        function ensureProductRoster() {
+            const ps = state.imageGen.product;
+            if (!ps.products || !Array.isArray(ps.products)) ps.products = [];
+            while (ps.products.length < 3) ps.products.push(emptyProductSlot());
+            ps.products = ps.products.slice(0, 3).map(function (p) {
+                return {
+                    name: (p && p.name) || '',
+                    description: (p && p.description) || '',
+                    dimensions: (p && p.dimensions) || '',
+                    palette: (p && p.palette) || '',
+                    material: (p && p.material) || '',
+                    refs: (p && Array.isArray(p.refs)) ? p.refs.map(function (ref) {
+                        if (typeof ref === 'string') return { name: '', dataUrl: ref };
+                        const dataUrl = ref && typeof ref.dataUrl === 'string'
+                            ? ref.dataUrl
+                            : ref && ref.dataUrl && typeof ref.dataUrl.dataUrl === 'string'
+                                ? ref.dataUrl.dataUrl
+                                : '';
+                        return { name: (ref && ref.name) || '', dataUrl: dataUrl };
+                    }).filter(function (ref) { return ref.dataUrl; }) : []
+                };
+            });
+            const n = Math.max(1, Math.min(3, parseInt(ps.count, 10) || 1));
+            ps.count = n;
+            return n;
+        }
+
+        function onProductSlotField(el) {
+            const i = parseInt(el.getAttribute('data-prod-i'), 10);
+            const field = el.getAttribute('data-prod-field');
+            if (isNaN(i) || !field) return;
+            ensureProductRoster();
+            state.imageGen.product.products[i][field] = el.value;
+        }
+
+        function renderProductSlots() {
+            const n = ensureProductRoster();
+            const wrap = document.getElementById('productSlots');
+            if (!wrap) return;
+            const products = state.imageGen.product.products;
+            let html = '';
+            for (let i = 0; i < n; i++) {
+                html += `
+                    <div class="rounded-2xl p-4 border border-white/10 bg-black/25 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-extrabold text-teal-300 uppercase tracking-widest">Produk ${i + 1}</span>
+                            <span class="text-[9px] text-gray-500">Sheet terpisah per produk</span>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Nama Produk <span class="text-red-400">*</span></label>
+                            <input type="text" id="productSlotName_${i}" data-prod-i="${i}" data-prod-field="name" maxlength="80" placeholder="Contoh: Botol Serum Vitamin C 30ml" oninput="onProductSlotField(this)" class="w-full glass-input rounded-xl px-3 py-2.5 text-sm text-white placeholder-gray-500" />
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Deskripsi Produk <span class="text-red-400">*</span></label>
+                            <textarea id="productSlotDesc_${i}" data-prod-i="${i}" data-prod-field="description" rows="3" placeholder="Bentuk, warna, bahan, komposisi, fungsi, label, logo, gaya kemasan, dan detail visual lain yang wajib muncul di sheet" oninput="onProductSlotField(this)" class="w-full glass-input rounded-xl p-3 text-sm text-white placeholder-gray-500 resize-y"></textarea>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Dimensi / Ukuran <span class="text-gray-500 normal-case font-medium">(opsional)</span></label>
+                                <input type="text" id="productSlotDim_${i}" data-prod-i="${i}" data-prod-field="dimensions" maxlength="120" placeholder="Contoh: 4 x 4 x 12 cm · botol 100ml · ukuran S/M/L/XL" oninput="onProductSlotField(this)" class="w-full glass-input rounded-xl px-3 py-2.5 text-xs text-white placeholder-gray-500" />
+                                <p class="text-[9px] text-gray-500 mt-1 leading-snug">Boleh kosong untuk produk tanpa ukuran pasti (baju, sepatu, aksesori). Sutradara pakai Auto Scale Lock dan jaga proporsi tetap konsisten.</p>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Palet Warna</label>
+                                <input type="text" id="productSlotPalette_${i}" data-prod-i="${i}" data-prod-field="palette" maxlength="120" placeholder="Contoh: putih matte, aksen emas, tutup hitam" oninput="onProductSlotField(this)" class="w-full glass-input rounded-xl px-3 py-2.5 text-xs text-white placeholder-gray-500" />
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">Material</label>
+                                <input type="text" id="productSlotMaterial_${i}" data-prod-i="${i}" data-prod-field="material" maxlength="120" placeholder="Contoh: kaca doff + tutup plastik ABS" oninput="onProductSlotField(this)" class="w-full glass-input rounded-xl px-3 py-2.5 text-xs text-white placeholder-gray-500" />
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-[10px] font-bold text-gray-200 flex items-center gap-2 uppercase tracking-wide">
+                                    <i class="fa-solid fa-image-portrait text-teal-400 text-sm"></i> Foto Referensi
+                                </span>
+                                <span id="badgeProductSheetRef_${i}" class="text-[10px] bg-teal-900/50 text-teal-300 font-extrabold px-2.5 py-0.5 rounded-full border border-teal-500/30">0</span>
+                            </div>
+                            <div onclick="triggerUpload('inputProductSheetRef_${i}')" class="border border-dashed border-white/10 hover:border-teal-500/50 rounded-xl p-4 text-center cursor-pointer transition bg-black/30 hover:bg-teal-950/20 group">
+                                <i class="fa-solid fa-cloud-arrow-up text-teal-400 text-xl mb-1 block group-hover:scale-110 transition-transform"></i>
+                                <span class="text-[10px] text-gray-400 font-semibold block">Tampak depan, samping, atau detail label. Bisa banyak (maks 8). Jika cuma 1 foto, sutradara lengkapi sudut sisanya.</span>
+                            </div>
+                            <input type="file" id="inputProductSheetRef_${i}" multiple accept="image/*" class="hidden" onchange="handleProductSheetFileSelect(this, ${i})">
+                            <div id="previewProductSheetRef_${i}" class="flex flex-wrap gap-2 mt-3"></div>
+                        </div>
+                    </div>`;
+            }
+            wrap.innerHTML = html;
+            for (let i = 0; i < n; i++) {
+                const p = products[i];
+                const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+                setVal('productSlotName_' + i, p.name);
+                setVal('productSlotDesc_' + i, p.description);
+                setVal('productSlotDim_' + i, p.dimensions);
+                setVal('productSlotPalette_' + i, p.palette);
+                setVal('productSlotMaterial_' + i, p.material);
+                renderProductSlotRefs(i);
+            }
+        }
+
+        function renderProductSlotRefs(idx) {
+            ensureProductRoster();
+            const slot = state.imageGen.product.products[idx];
+            const list = (slot && slot.refs) || [];
+            const badge = document.getElementById('badgeProductSheetRef_' + idx);
+            const preview = document.getElementById('previewProductSheetRef_' + idx);
+            if (badge) badge.textContent = String(list.length);
+            if (!preview) return;
+            preview.innerHTML = list.map(function (item, refI) {
+                return '<div class="relative w-12 h-12 rounded-lg overflow-hidden border border-teal-500/30 group ring-1 ring-black/50 shadow-sm">' +
+                    '<img src="' + item.dataUrl + '" class="w-full h-full object-cover">' +
+                    '<button onclick="removeProductSheetRef(' + idx + ',' + refI + ')" class="absolute inset-0 bg-black/70 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs transition backdrop-blur-sm"><i class="fa-solid fa-trash-can"></i></button>' +
+                    '</div>';
+            }).join('');
+        }
+
+        async function handleProductSheetFileSelect(input, idx) {
+            const files = Array.from(input.files || []);
+            input.value = '';
+            if (!files.length) return;
+            ensureProductRoster();
+            const slot = state.imageGen.product.products[idx];
+            if (!slot.refs) slot.refs = [];
+            const room = Math.max(0, PRODUCT_SHEET_REF_MAX - slot.refs.length);
+            if (room <= 0) {
+                alert('Maksimal ' + PRODUCT_SHEET_REF_MAX + ' foto per produk.');
+                return;
+            }
+            const take = files.slice(0, room);
+            if (files.length > room) alert('Hanya ' + room + ' foto yang ditambah (maks ' + PRODUCT_SHEET_REF_MAX + ' per produk).');
+            for (let f = 0; f < take.length; f++) {
+                const file = take[f];
+                const dataUrl = await new Promise(function (resolve) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) { resolve(e.target.result); };
+                    reader.readAsDataURL(file);
+                });
+                const compressed = (typeof compressRefImage === 'function') ? await compressRefImage(dataUrl) : { dataUrl: dataUrl };
+                slot.refs.push({ name: file.name, dataUrl: compressed.dataUrl || dataUrl });
+            }
+            renderProductSlotRefs(idx);
+        }
+
+        function removeProductSheetRef(idx, refI) {
+            ensureProductRoster();
+            const slot = state.imageGen.product.products[idx];
+            if (!slot || !slot.refs) return;
+            slot.refs.splice(refI, 1);
+            renderProductSlotRefs(idx);
+        }
+
+        function buildProductSheetPrompt(slot) {
+            const name = ((slot && slot.name) || '').trim();
+            const description = ((slot && slot.description) || '').trim();
+            const dimensions = ((slot && slot.dimensions) || '').trim();
+            const palette = ((slot && slot.palette) || '').trim();
+            const material = ((slot && slot.material) || '').trim();
+            const hasRefs = slot && slot.refs && slot.refs.length > 0;
+            const parts = [];
+            parts.push('Create ONE single image: a professional cinematic product reference sheet, portrait 3:4 aspect ratio, with a pure black background and bold black gutters.');
+            parts.push('PRODUCT SHEET EDITORIAL LAYOUT LOCK (mandatory): exactly 7 panels of the SAME product, arranged as one designed contact sheet matching this blueprint. Panel A is one large product front view occupying the left side from near the top to near the bottom. Panel B is a side view in the upper-right. Panel C is a three-quarter / 3/4 view in the middle-right. Panels D, E, F, and G are four equal detail panels in one horizontal row across the bottom. The left front-view panel is visibly taller and wider than the two right panels. The two right panels are stacked vertically. The four bottom detail panels are aligned and equal width. Use thick black spacing between every panel. Do not use a 3x3 grid, equal cells, nine cells, thin divider lines, or any alternate arrangement. No extra panel, no 8th figure, no collage of different products.');
+            parts.push('Panel content in exact order: A PRODUCT FRONT view (full visible front face, label/logo/colour fully readable); B PRODUCT SIDE view (profile/side silhouette); C PRODUCT 3/4 VIEW (three-quarter angle showing front + side together); D TOP-DOWN view (looking straight down at the product); E BOTTOM view (looking up at the base); F LABEL / LOGO close-up (sharp macro of the brand name, ingredient list, or stamp); G IN-CONTEXT lifestyle (the same product placed on a relevant surface or held by an invisible hand against a clean backdrop, showing real-world scale). Keep the same product identity — exact same shape, color, label, logo, packaging, material, finish — in every panel; only camera angle and framing change.');
+            parts.push('Design treatment: black background and black gutters, clean light studio photo backgrounds inside the panels, bold condensed yellow uppercase title at the top center using the product name, and small black label boxes with bold yellow uppercase text overlapping the lower edge of each panel. Labels must read exactly: FRONT VIEW, SIDE VIEW, 3/4 VIEW, TOP, BOTTOM, DETAIL, IN-CONTEXT. Do not add any other text, logo, watermark, UI, or decorative elements.');
+            if (name) parts.push('Product name: ' + name + '.');
+            if (description) {
+                parts.push('USER REQUEST — HIGHEST PRIORITY (follow this description exactly, including shape, color, label, logo, material, finish, packaging, accessories):');
+                parts.push('--- PRODUCT DATA START ---');
+                parts.push(description);
+                parts.push('--- PRODUCT DATA END ---');
+                parts.push('If the user request specifies colour, material, label, or logo details, they OVERRIDE whatever is visible in the reference photos. Keep the exact registered product identity but apply the exact user-requested design. Do not silently substitute, simplify, modernize, or revert the requested design.');
+            }
+            if (dimensions) {
+                parts.push('PHYSICAL DIMENSIONS LOCK: ' + dimensions + '. Every panel must show the product at the SAME real-world scale ratio so the size can be read consistently across panels. In Panel G (in-context), the surface or hand reference must visually confirm these dimensions.');
+            } else {
+                parts.push('SCALE NOTE: the user did not provide exact physical dimensions. Infer a plausible real-world scale from the product category (e.g. apparel, footwear, accessory) and keep that scale consistent across all 7 panels. In Panel G (in-context), use a believable hand, hanger, mannequin, or surface reference so the inferred scale reads correctly.');
+            }
+            if (palette) {
+                parts.push('PALETTE LOCK: ' + palette + '. Freeze these exact colours, accents, finish, and material response across all 7 panels. No drift, no recolouring, no gradient swap.');
+            }
+            if (material) {
+                parts.push('MATERIAL LOCK: ' + material + '. Reproduce the exact surface material (glass, plastic, metal, paper, fabric, etc.), transparency, gloss, and texture in every panel.');
+            }
+            if (hasRefs) {
+                parts.push('REFERENCE PHOTOS are attached. Use them primarily to lock THIS product identity: shape, color, label, logo, packaging, material, finish. If the user did not specify colour or material, preserve the reference design across all 7 panels. If the user did specify, follow the USER REQUEST instead and apply that design consistently. If only a front photo is attached, invent the other 6 panels from the same product identity without changing shape, label, or proportions.');
+            }
+            parts.push('Identity lock: the SAME product in all 7 panels. Shape, proportions, colour, label, logo, packaging, material, finish, scale, and visible accessories stay identical. Apply one consistent design across all 7 panels: use the exact USER REQUEST when provided; otherwise use the reference design or the description. Only camera angle, framing, and the in-context surface change. Photoreal cinematic lighting, natural material response.');
+            parts.push('No UI, no app screens, no social-media overlays, no extra people, no decorative text besides the product title and the 7 specified panel labels.');
+            return parts.join(' ');
+        }
+
+        async function generateProductSheetImage({ promptText, aspectRatio, references }) {
+            const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent';
+            const contents = [{ role: 'user', parts: [{ text: promptText }] }];
+            for (const ref of (references || [])) {
+                const dataUrl = typeof ref === 'string' ? ref : ref && ref.dataUrl;
+                if (typeof dataUrl !== 'string') continue;
+                const m = dataUrl.match(/^data:(.+);base64,(.+)$/);
+                if (m) contents[0].parts.push({ inlineData: { mimeType: m[1], data: m[2] } });
+            }
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: contents,
+                    generationConfig: {
+                        responseModalities: ['IMAGE'],
+                        imageAspectRatios: [aspectRatio || '1:1']
+                    }
+                })
+            });
+            if (!response.ok) {
+                const errText = await response.text().catch(() => '');
+                throw new Error('Gemini product-sheet request failed: ' + response.status + (errText ? ' ' + errText.slice(0, 240) : ''));
+            }
+            const data = await response.json();
+            const parts = (((data || {}).candidates || [])[0] || {}).content && (((data || {}).candidates || [])[0] || {}).content.parts;
+            if (!Array.isArray(parts)) throw new Error('Product sheet response has no content parts.');
+            for (const part of parts) {
+                if (part && part.inlineData && part.inlineData.data) {
+                    const mime = part.inlineData.mimeType || 'image/png';
+                    return 'data:' + mime + ';base64,' + part.inlineData.data;
+                }
+            }
+            throw new Error('Product sheet response has no image.');
+        }
+
+        function renderProductSheetResultCard(idx, label) {
+            const title = (label || ('Produk ' + (idx + 1))).replace(/[<>]/g, '');
+            return `
+                <div data-img-card class="glass-card rounded-2xl p-5 border border-white/10 shadow-xl relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 to-cyan-500"></div>
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-[10px] font-extrabold text-white uppercase tracking-widest">${title}</span>
+                        <span id="productResultStatus_${idx}" class="text-[10px] text-gray-500 font-mono">queued</span>
+                    </div>
+                    <div id="productImgContainer_${idx}" class="relative bg-black/80 rounded-2xl overflow-hidden border border-white/10 flex items-center justify-center min-h-[260px] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.8)]">
+                        <div id="productImgLoading_${idx}" class="cinematic-progress-bar my-6">
+                            <div class="cinematic-progress-fill"></div>
+                            <p class="text-center text-[11px] text-gray-400 mt-3 font-semibold">Menghasilkan sheet ${title}...</p>
+                        </div>
+                        <img id="productImg_${idx}" class="hidden w-full h-auto object-contain rounded-2xl transition-opacity duration-500 opacity-0" />
+                    </div>
+                    <div id="productResultActions_${idx}" class="mt-3 flex flex-wrap justify-end gap-2 hidden">
+                        <button onclick="retryProductSheetImage(${idx})" class="text-[10px] bg-white/5 hover:bg-teal-600/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:border-teal-500/50 transition font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-rotate-right mr-1"></i>Coba Lagi
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+        // V5.2: when a product sheet is generated, push it into the storyboard
+        // product reference + productLock so every later storyboard / video
+        // pass automatically uses the SAME product identity, dimensions,
+        // palette, and material. The user no longer has to re-upload the
+        // product photo or retype the spec.
+        function syncProductSheetToStoryboardRef(slot, dataUrl) {
+            if (!slot || !dataUrl) return;
+            if (!Array.isArray(state.productReference)) state.productReference = [];
+            // Keep the first product ref slot in sync (PRODUCT_1). Replace
+            // any previous sheet snapshot so we don't accumulate duplicates.
+            state.productReference = state.productReference.filter(function (ref) {
+                return !(ref && ref.__source === 'productSheet');
+            });
+            state.productReference.unshift({ name: slot.name || 'Product Sheet', dataUrl: dataUrl, __source: 'productSheet' });
+            if (typeof updateRefCardUI === 'function') updateRefCardUI('productReference');
+            if (!state.productLock || typeof state.productLock !== 'object') state.productLock = {};
+            if (slot.name && !state.productLock.name) state.productLock.name = slot.name;
+            if (slot.dimensions) {
+                state.productLock.size = slot.dimensions;
+                const sizeEl = document.getElementById('productSizeInput');
+                if (sizeEl) sizeEl.value = slot.dimensions;
+            }
+            if (slot.palette) {
+                const colors = slot.palette.split(/[,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+                if (colors.length && !state.productLock.color) state.productLock.color = colors.join(', ');
+            }
+            if (slot.material) {
+                if (!state.productLock.material) state.productLock.material = slot.material;
+                if (!state.productLock.texture) state.productLock.texture = slot.material;
+            }
+            const keyDetails = [slot.name, slot.dimensions, slot.palette, slot.material]
+                .filter(Boolean).join(' | ');
+            if (keyDetails && !state.productLock.keyDetails) state.productLock.keyDetails = keyDetails;
+        }
+
+        async function startProductSheetGeneration() {
+            if (!currentUser.loggedIn) {
+                showAuthView();
+                return;
+            }
+            if (state.imageGen.isGenerating) return;
+
+            const n = ensureProductRoster();
+            const roster = state.imageGen.product.products;
+            for (let i = 0; i < n; i++) {
+                const slot = roster[i];
+                const hasName = slot.name && slot.name.trim();
+                const hasDesc = slot.description && slot.description.trim();
+                const hasRefs = slot.refs && slot.refs.length;
+                if (!hasName) {
+                    showImageGenNotice('Lengkapi nama Produk ' + (i + 1) + ' sebelum generate.', 'error');
+                    const el = document.getElementById('productSlotName_' + i);
+                    if (el) el.focus();
+                    return;
+                }
+                if (!hasDesc) {
+                    showImageGenNotice('Lengkapi deskripsi Produk ' + (i + 1) + ' sebelum generate.', 'error');
+                    const el = document.getElementById('productSlotDesc_' + i);
+                    if (el) el.focus();
+                    return;
+                }
+                if (!hasRefs) {
+                    showImageGenNotice('Tambah minimal 1 foto referensi untuk Produk ' + (i + 1) + '.', 'error');
+                    return;
+                }
+            }
+
+            const submitBtn = document.getElementById('btnGenerateProduct');
+            const resultsContainer = document.getElementById('productGenResults');
+            resultsContainer.innerHTML = `<div class="image-gen-grid char-sheet-grid" data-count="${n}"></div>`;
+            const grid = resultsContainer.firstElementChild;
+            for (let i = 0; i < n; i++) {
+                const label = (roster[i].name && roster[i].name.trim()) || ('Produk ' + (i + 1));
+                grid.insertAdjacentHTML('beforeend', renderProductSheetResultCard(i, label));
+            }
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> <span>Generating...</span>`;
+            state.imageGen.isGenerating = true;
+            showImageGenNotice('Memproses ' + n + ' product sheet...', 'info');
+
+            const results = [];
+            for (let i = 0; i < n; i++) {
+                const slot = snapshotProductSlot(roster[i]);
+                const label = (slot.name && slot.name.trim()) || ('Produk ' + (i + 1));
+                const promptText = buildProductSheetPrompt(slot);
+                const refs = slot.refs || [];
+                const configSnapshot = {
+                    count: n,
+                    products: [slot],
+                    productName: slot.name,
+                    dimensions: slot.dimensions,
+                    palette: slot.palette,
+                    material: slot.material,
+                    aspectRatio: PRODUCT_SHEET_RATIO,
+                    refs: refs
+                };
+
+                const statusEl = document.getElementById('productResultStatus_' + i);
+                const imgEl = document.getElementById('productImg_' + i);
+                const loadingEl = document.getElementById('productImgLoading_' + i);
+                const actionsEl = document.getElementById('productResultActions_' + i);
+                if (statusEl) statusEl.innerHTML = '<span class="text-teal-300">generating...</span>';
+                showImageGenNotice('Menghasilkan ' + label + ' (' + (i + 1) + '/' + n + ')...', 'info');
+
+                try {
+                    const imgDataUrl = await generateProductSheetImage({
+                        promptText: promptText,
+                        aspectRatio: PRODUCT_SHEET_RATIO,
+                        references: refs
+                    });
+                    if (imgEl) {
+                        imgEl.src = imgDataUrl;
+                        imgEl.onload = () => imgEl.classList.remove('opacity-0');
+                        imgEl.classList.remove('hidden');
+                        imgEl.onclick = () => openImageLightbox(imgDataUrl);
+                    }
+                    if (loadingEl) loadingEl.classList.add('hidden');
+                    if (statusEl) statusEl.innerHTML = '<span class="text-emerald-300">done</span>';
+                    if (actionsEl) {
+                        const filename = buildDownloadFilename('product');
+                        actionsEl.innerHTML = `
+                            <button onclick="openEditImageModal('product', ${i})" class="text-[10px] bg-white/5 hover:bg-violet-600/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:border-violet-500/50 transition font-bold uppercase tracking-wide">
+                                <i class="fa-solid fa-pen mr-1"></i>Edit
+                            </button>
+                            <button onclick="downloadImage('${imgDataUrl}', '${filename}')" class="text-[10px] bg-white/5 hover:bg-teal-600/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:border-teal-500/50 transition font-bold uppercase tracking-wide">
+                                <i class="fa-solid fa-download mr-1"></i>Download
+                            </button>
+                            <button onclick="retryProductSheetImage(${i})" class="text-[10px] bg-white/5 hover:bg-teal-600/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:border-teal-500/50 transition font-bold uppercase tracking-wide">
+                                <i class="fa-solid fa-rotate-right mr-1"></i>Coba Lagi
+                            </button>`;
+                        actionsEl.classList.remove('hidden');
+                    }
+                    const rec = saveOriginalToHistory('product', imgDataUrl, promptText, configSnapshot);
+                    results.push({ dataUrl: imgDataUrl, promptUsed: promptText, historyId: rec ? rec.id : null, slot: slot, refs: refs });
+                    // V5.2: keep storyboard product reference in sync with the
+                    // freshly generated sheet so the user doesn't have to
+                    // re-upload the product in the storyboard creation page.
+                    syncProductSheetToStoryboardRef(slot, imgDataUrl);
+                } catch (err) {
+                    console.error('[ProductSheet] Produk ' + (i + 1) + ' failed:', err);
+                    if (statusEl) statusEl.innerHTML = '<span class="text-red-400">failed</span>';
+                    if (loadingEl) {
+                        loadingEl.innerHTML = `
+                            <div class="text-center p-6 space-y-2">
+                                <i class="fa-solid fa-triangle-exclamation text-amber-400 text-2xl"></i>
+                                <p class="text-[11px] text-red-300 font-bold uppercase tracking-widest">Generation failed</p>
+                                <p class="text-[10px] text-gray-400">${(err?.message || 'Unknown error').replace(/[<>]/g,'')}</p>
+                            </div>`;
+                    }
+                    if (actionsEl) actionsEl.classList.remove('hidden');
+                    results.push({ error: err?.message || 'Unknown error', slot: slot, promptUsed: promptText, refs: refs });
+                }
+            }
+            state.imageGen.lastResult = results;
+
+            const failed = results.filter(r => r.error).length;
+            if (failed === 0) {
+                showImageGenNotice(n + ' product sheet berhasil di-generate. Otomatis tersinkron ke Storyboard Reference.', 'success');
+            } else if (failed === n) {
+                showImageGenNotice('Gagal generate semua product sheet. Coba lagi.', 'error');
+            } else {
+                showImageGenNotice((n - failed) + ' dari ' + n + ' product sheet berhasil.', 'info');
+            }
+
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> <span>Generate Product Sheet</span>`;
+            state.imageGen.isGenerating = false;
+        }
+
+        async function retryProductSheetImage(idx) {
+            if (state.imageGen.isGenerating) return;
+            ensureProductRoster();
+            const prev = (state.imageGen.lastResult || [])[idx];
+            const slot = (prev && prev.slot) ? prev.slot : snapshotProductSlot(state.imageGen.product.products[idx] || emptyProductSlot());
+            const promptText = (prev && prev.promptUsed) ? prev.promptUsed : buildProductSheetPrompt(slot);
+            const refs = (prev && prev.refs) ? prev.refs : (slot.refs || []);
+
+            const statusEl = document.getElementById('productResultStatus_' + idx);
+            const imgEl = document.getElementById('productImg_' + idx);
+            const loadingEl = document.getElementById('productImgLoading_' + idx);
+            const actionsEl = document.getElementById('productResultActions_' + idx);
+            if (statusEl) statusEl.innerHTML = '<span class="text-teal-300">retrying...</span>';
+            if (imgEl) imgEl.classList.add('hidden');
+            if (loadingEl) {
+                loadingEl.className = 'cinematic-progress-bar my-6';
+                loadingEl.innerHTML = '<div class="cinematic-progress-fill"></div><p class="text-center text-[11px] text-gray-400 mt-3 font-semibold">Menghasilkan product sheet...</p>';
+                loadingEl.classList.remove('hidden');
+            }
+            try {
+                const imgDataUrl = await generateProductSheetImage({
+                    promptText: promptText,
+                    aspectRatio: PRODUCT_SHEET_RATIO,
+                    references: refs
+                });
+                if (imgEl) {
+                    imgEl.src = imgDataUrl;
+                    imgEl.onload = () => imgEl.classList.remove('opacity-0');
+                    imgEl.classList.remove('hidden');
+                    imgEl.onclick = () => openImageLightbox(imgDataUrl);
+                }
+                if (loadingEl) loadingEl.classList.add('hidden');
+                if (statusEl) statusEl.innerHTML = '<span class="text-emerald-300">done</span>';
+                if (actionsEl) {
+                    const filename = buildDownloadFilename('product');
+                    actionsEl.innerHTML = `
+                        <button onclick="openEditImageModal('product', ${idx})" class="text-[10px] bg-white/5 hover:bg-violet-600/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:border-violet-500/50 transition font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-pen mr-1"></i>Edit
+                        </button>
+                        <button onclick="downloadImage('${imgDataUrl}', '${filename}')" class="text-[10px] bg-white/5 hover:bg-teal-600/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:border-teal-500/50 transition font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-download mr-1"></i>Download
+                        </button>
+                        <button onclick="retryProductSheetImage(${idx})" class="text-[10px] bg-white/5 hover:bg-teal-600/30 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg border border-white/10 hover:border-teal-500/50 transition font-bold uppercase tracking-wide">
+                            <i class="fa-solid fa-rotate-right mr-1"></i>Coba Lagi
+                        </button>`;
+                }
+                const configSnapshot = {
+                    count: 1,
+                    products: [slot],
+                    productName: slot.name,
+                    dimensions: slot.dimensions,
+                    palette: slot.palette,
+                    material: slot.material,
+                    aspectRatio: PRODUCT_SHEET_RATIO,
+                    refs: refs
+                };
+                await persistImageGenLatest('product', imgDataUrl, promptText, configSnapshot, idx, { slot: slot, refs: refs });
+                syncProductSheetToStoryboardRef(slot, imgDataUrl);
+            } catch (err) {
+                console.error('[ProductSheet] Retry ' + (idx + 1) + ' failed:', err);
+                if (statusEl) statusEl.innerHTML = '<span class="text-red-400">failed</span>';
+                if (loadingEl) {
+                    loadingEl.innerHTML = `
+                        <div class="text-center p-6 space-y-2">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-2xl"></i>
+                            <p class="text-[11px] text-red-300 font-bold uppercase tracking-widest">Retry failed</p>
+                            <p class="text-[10px] text-gray-400">${(err?.message || 'Unknown error').replace(/[<>]/g,'')}</p>
+                        </div>`;
+                }
+            }
+        }
+
+        function resetProductSheetForm() {
+            if (state.imageGen.isGenerating) return;
+            const ps = state.imageGen.product;
+            ps.count = 1;
+            ps.products = [emptyProductSlot(), emptyProductSlot(), emptyProductSlot()];
+            const resultsEl = document.getElementById('productGenResults');
+            if (resultsEl) resultsEl.innerHTML = '';
+            renderProductSlots();
+            const countWrap = document.getElementById('selectorProductCount');
+            if (countWrap) {
+                const btn = countWrap.querySelector('button[data-val="1"]');
+                if (btn) btn.click();
+            }
+            showImageGenNotice('Form product sheet direset.', 'info');
+        }
+
 
 /* ========================================== */
 /* PHASE 6A.8: POSTER & SOCIAL MEDIA          */

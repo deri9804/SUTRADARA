@@ -114,6 +114,14 @@ const state = {
                 { name: "", description: "", refs: [] }
             ]
         },
+        product: {
+            count: 1,
+            products: [
+                { name: "", description: "", dimensions: "", palette: "", material: "", refs: [] },
+                { name: "", description: "", dimensions: "", palette: "", material: "", refs: [] },
+                { name: "", description: "", dimensions: "", palette: "", material: "", refs: [] }
+            ]
+        },
         poster: {
             mainMessage: "",
             designType: "Social Media Post",

@@ -342,6 +342,15 @@ window.addEventListener('load', async () => {
                 } else if (event === 'SIGNED_OUT') {
                     resetUserSession();
                     showAuthView();
+                } else if (event === 'PASSWORD_RECOVERY') {
+                    try {
+                        if (session && session.user && session.user.email) {
+                            passwordRecoveryEmail = session.user.email;
+                        }
+                        if (typeof openSetNewPasswordModal === 'function') openSetNewPasswordModal(session);
+                    } catch (e) {
+                        console.warn('[Auth] Failed to open set-password modal:', e && e.message);
+                    }
                 }
             });
 
@@ -349,7 +358,24 @@ window.addEventListener('load', async () => {
             if (session && session.user) {
                 await handleSupabaseUserSession(session.user);
             } else {
-                showAuthView();
+                try {
+                    const probeSession = await withAuthTimeout(supabaseClient.auth.getSession(), 'Probe session after recovery');
+                    if (probeSession && probeSession.data && probeSession.data.session) {
+                        const hash = (typeof window !== 'undefined' && window.location && window.location.hash) || '';
+                        if (/type=recovery/i.test(hash) || /access_token=/i.test(hash)) {
+                            if (probeSession.data.session.user && probeSession.data.session.user.email) {
+                                passwordRecoveryEmail = probeSession.data.session.user.email;
+                            }
+                            if (typeof openSetNewPasswordModal === 'function') openSetNewPasswordModal(probeSession.data.session);
+                        } else {
+                            showAuthView();
+                        }
+                    } else {
+                        showAuthView();
+                    }
+                } catch (e) {
+                    showAuthView();
+                }
             }
 
         } catch (err) {

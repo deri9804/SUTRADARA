@@ -466,6 +466,16 @@ function navGoUGC() {
     }
 }
 
+function navGoProduct() {
+    setActiveViewKey('imageGen-product');
+    setActiveSidebarItem('imageGen-product');
+    expandNavGroup('imageGen');
+    showImageGenView();
+    if (typeof selectImageGenTool === 'function') {
+        selectImageGenTool('product');
+    }
+}
+
 function navGoCharacter() {
     setActiveViewKey('imageGen-character');
     setActiveSidebarItem('imageGen-character');
@@ -570,7 +580,7 @@ function clearActiveViewKey() {
     try { localStorage.removeItem(ACTIVE_VIEW_STORAGE_KEY); } catch (e) {}
 }
 
-const VALID_ACTIVE_KEYS = ['storyboard-create', 'storyboard-commercial', 'storyboard-drama', 'storyboard-animation', 'storyboard-shortFilm', 'storyboard-education', 'storyboard-documentary', 'storyboard-custom', 'imageGen-foto', 'imageGen-thumbnail', 'imageGen-infographic', 'imageGen-ugc', 'imageGen-character', 'imageGen-poster', 'videoTools-merge', 'videoTools-toPrompt', 'history-view', 'voiceover', 'admin'];
+const VALID_ACTIVE_KEYS = ['storyboard-create', 'imageGen-product', 'settings', 'storyboard-commercial', 'storyboard-drama', 'storyboard-animation', 'storyboard-shortFilm', 'storyboard-education', 'storyboard-documentary', 'storyboard-custom', 'imageGen-foto', 'imageGen-thumbnail', 'imageGen-infographic', 'imageGen-ugc', 'imageGen-character', 'imageGen-poster', 'videoTools-merge', 'videoTools-toPrompt', 'history-view', 'voiceover', 'admin'];
 
 function restoreActiveView(role) {
     const saved = getActiveViewKey();
@@ -661,4 +671,37 @@ function restoreActiveView(role) {
     }
     return false;
 }
-
+
+
+function showSettingsView() {
+    if (!currentUser.loggedIn || currentUser.status !== 'active') {
+        showAuthView();
+        return;
+    }
+    if (typeof hideMainViews === 'function') hideMainViews();
+    const userDrop = document.getElementById('userDropdown');
+    if (userDrop) userDrop.classList.add('hidden');
+    const el = document.getElementById('settingsView');
+    if (el) el.classList.remove('hidden');
+    if (typeof showAppHeader === 'function') showAppHeader();
+    syncSettingsLanguageRadios();
+}
+
+function navGoSettings() {
+    setActiveViewKey('settings');
+    setActiveSidebarItem('settings');
+    showSettingsView();
+}
+
+function syncSettingsLanguageRadios() {
+    const lang = (currentUser && currentUser.uiLanguage) || 'id';
+    const radios = document.querySelectorAll('input[name="uiLanguageRadio"]');
+    radios.forEach((r) => { r.checked = (r.value === lang); });
+    const labelEl = document.getElementById('uiLanguageCurrentLabel');
+    if (labelEl) {
+        labelEl.textContent = lang === 'en'
+            ? 'English (international users)'
+            : 'Indonesia (default)';
+    }
+}
+

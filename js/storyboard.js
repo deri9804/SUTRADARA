@@ -2963,30 +2963,46 @@ function buildLanguageDeliveryLock(config) {
 
 function toNaturalDialogueFormat(dialogue, identity) {
     if (!dialogue) return '';
+    const chars = (identity && Array.isArray(identity.characters)) ? identity.characters : [];
+    const nameById = {};
+    chars.forEach((c, idx) => {
+        if (!c) return;
+        const id = (c.characterId || ('CHARACTER_' + (idx + 1))).toUpperCase();
+        const realName = c.speakerName || c.name || '';
+        if (typeof isUsableDisplayName === 'function' && isUsableDisplayName(realName)) nameById[id] = realName;
+    });
     return String(dialogue).split('\n').map(line => {
         const trimmed = line.trim();
         if (!trimmed) return line;
         const m = trimmed.match(/^(\[[^\]]+\]\s*)?(CHARACTER_\d+)\s*:\s*(.+)$/i);
         if (!m) {
             const vo = trimmed.match(/^(VOICEOVER|NARRATOR|SOUND DESIGN)\s*:\s*(.+)$/i);
-            if (vo) return vo[1].toUpperCase() + ': "' + vo[2].trim().replace(/^"|"$/g, '') + '"';
+            if (vo) {
+                const voText = typeof toPronounceableIndonesian === 'function' ? toPronounceableIndonesian(vo[2].trim().replace(/^"|"$/g, '')) : vo[2].trim().replace(/^"|"$/g, '');
+                return vo[1].toUpperCase() + ': "' + voText + '"';
+            }
             return line;
         }
         const expression = m[1] || '';
-        const speaker = m[2].toUpperCase();
+        const speakerId = m[2].toUpperCase();
+        const speakerName = nameById[speakerId] || speakerId;
         const content = m[3].trim()
             .replace(/^\[voice:[^\]]+\]\s*/i, '')
             .replace(/^(?:speaks clearly saying|says in measured delivery)\s*:\s*/i, '')
             .replace(/^"|"$/g, '');
-        return expression + speaker + ': "' + content.replace(/"/g, '\\"') + '"';
+        const speechText = typeof toPronounceableIndonesian === 'function' ? toPronounceableIndonesian(content) : content;
+        return expression + speakerName + ': "' + speechText.replace(/"/g, '\\"') + '"';
     }).join('\n');
 }
 
 function getMaxWordsForDuration(duration, scene, config) {
-    if (scene && config && sceneRequiresSingleSpeaker(scene, config)) {
+    const d = String(duration || '8s');
+    if (scene && config && typeof dialogueWordBudget === 'function') {
         return dialogueWordBudget(scene, config).maxWords;
     }
-    const d = String(duration || '8s');
+    if (typeof dialogueWordRange === 'function') {
+        return dialogueWordRange(d).maxWords;
+    }
     if (d.indexOf('5') === 0) return 12;
     if (d.indexOf('8') === 0) return 20;
     return 25;
@@ -3696,51 +3712,44 @@ async function saveEditedSceneDialogue(sceneIdx) {
     const previousRevision = scene.dialogueRevision;
     const previousSource = scene.dialogueSource;
     const previousDeferred = scene.dialogueDeferred;
+    const previousUserLocked = scene.dialogueUserLocked;
+    const updateStatus = (text, cls) => {
+        const status = document.getElementById('dialogueStatus_' + sceneIdx);
+        if (status) {
+            status.textContent = text;
+            status.className = 'text-[10px] ' + (cls || 'text-gray-500') + ' mt-2 font-mono';
+        }
+    };
     if (value === previous.trim()) {
-        // Nothing actually changed; still re-sync the prompt in case it was stale.
         recompileSceneVideoPromptOnly(state.directorData, sceneIdx, Object.assign({}, state, { story: state.story }));
         const videoAreaSame = document.getElementById('masterVideoPrompt_' + sceneIdx);
         if (videoAreaSame) videoAreaSame.value = scene.masterVideoPrompt || '';
         showCanvasNotice('Dialog tidak berubah. Prompt video tetap sinkron.', 'info');
         return;
     }
-    scene.dialogueOrNarration = value;
+    const editorIdentity = state.directorData?.masterVisualIdentity || {};
+    const reversedValue = (typeof reverseResolveSpeakerNameInDialogue === 'function')
+        ? reverseResolveSpeakerNameInDialogue(value, editorIdentity)
+        : value;
+    scene.dialogueOrNarration = reversedValue;
+    scene.dialogueUserLocked = true;
     const sceneCount = Array.isArray(state.directorData?.scenes) ? state.directorData.scenes.length : 1;
     const violations = sceneDialogueViolations(scene, state, state.directorData, sceneIdx)
         .concat(dialogueStructureViolations(scene.dialogueOrNarration, sceneIdx, sceneCount, state));
     if (violations.length) {
-        scene.dialogueOrNarration = previous;
-        area.value = previous;
-        const status = document.getElementById('dialogueStatus_' + sceneIdx);
-        const guidance = getDialogueViolationGuidance(violations);
-        const baseMessage = getDialogueRecoveryMessage(scene.sceneNumber || sceneIdx + 1, true);
-        const message = baseMessage + (guidance ? '\n\nDetail pelanggaran:\n' + guidance : '');
-        if (status) {
-            status.textContent = message.split('\n')[0];
-            status.className = 'text-[10px] text-amber-300 mt-2 font-mono';
-        }
-        showCanvasNotice(message, 'warning');
-        return;
+        updateStatus('Dialog tersimpan apa adanya. Peringatan format: ' + (getDialogueViolationGuidance(violations) || 'lihat notifikasi.').split('\n')[0], 'text-amber-300');
+        showCanvasNotice('Dialog tersimpan ke prompt video. Ada catatan format yang bisa diperbaiki kalau mau.', 'info');
     }
     try {
         scene.dialogueRevision = (Number(scene.dialogueRevision) || 0) + 1;
         scene.dialogueSource = 'user-edited';
         scene.dialogueDeferred = false;
-        // Lightweight recompile: only rebuild the audio block of the existing video prompt.
-        // We intentionally do NOT call applyStoryboardSceneLocks here because its aggressive
-        // normalization (enforceHardWordLimit, deduplicateDialogueLines) can re-mutate the
-        // user's manual edit and trigger the rollback path, which is what makes the save
-        // button look like it fails to update the video prompt.
         recompileSceneVideoPromptOnly(state.directorData, sceneIdx, Object.assign({}, state, { story: state.story }));
         const savedScene = state.directorData.scenes[sceneIdx];
         const videoArea = document.getElementById('masterVideoPrompt_' + sceneIdx);
         if (area) area.value = savedScene.dialogueOrNarration || '';
         if (videoArea) videoArea.value = savedScene.masterVideoPrompt || '';
-        const status = document.getElementById('dialogueStatus_' + sceneIdx);
-        if (status) {
-            status.textContent = 'Dialog disimpan. Prompt video sudah disinkronkan.';
-            status.className = 'text-[10px] text-emerald-300 mt-2 font-mono';
-        }
+        updateStatus('Dialog disimpan (locked). Prompt video sudah disinkronkan.', 'text-emerald-300');
         await persistCurrentStoryboardHistory();
         showCanvasNotice('Dialog disimpan. Prompt video scene sudah diperbarui.', 'success');
     } catch (error) {
@@ -3749,16 +3758,13 @@ async function saveEditedSceneDialogue(sceneIdx) {
         scene.dialogueRevision = previousRevision;
         scene.dialogueSource = previousSource;
         scene.dialogueDeferred = previousDeferred;
+        scene.dialogueUserLocked = previousUserLocked === true;
         area.value = previous;
         const videoArea = document.getElementById('masterVideoPrompt_' + sceneIdx);
         if (videoArea) videoArea.value = previousVideoPrompt;
         console.warn('[Save Dialogue] Recompile failed:', error && error.message);
         const message = getDialogueRecoveryMessage(scene.sceneNumber || sceneIdx + 1, true);
-        const status = document.getElementById('dialogueStatus_' + sceneIdx);
-        if (status) {
-            status.textContent = message;
-            status.className = 'text-[10px] text-amber-300 mt-2 font-mono';
-        }
+        updateStatus(message, 'text-amber-300');
         showCanvasNotice(message, 'warning');
     }
 }
@@ -5254,6 +5260,552 @@ function buildPromptCompilerBlocks(breakdown, scene, config, sceneIdx, type) {
     return { continuity, context, action, audio, negatives, output };
 }
 
+
+/* ================================================================= */
+/* V5.1 & V5.2: DIALOGUE OVERHAUL, POSITIONING LOCK & OCR HELPERS    */
+/* ================================================================= */
+
+        // V5.1: Helper to detect voice instruction contamination in dialogue
+        function hasVoiceInstructionContamination(dialogue) {
+            if (!dialogue || typeof dialogue !== 'string') return false;
+            const contaminationPatterns = [
+                // Original patterns
+                /\bsame age stage\b/i,
+                /\bpitch, timbre\b/i,
+                /\bpitch, accent\b/i,
+                /\bspeaking style\b/i,
+                /\bage stage, pitch\b/i,
+                /\bvoice characteristics?\b/i,
+                /\bfrozen voice\b/i,
+                /\bunique frozen voice\b/i,
+                /\bpreserve the same\b.*\bvoice\b/i,
+                /\btime-skip\b/i,
+                /\bvoice description\b/i,
+                /\bvoice instruction\b/i,
+                /\bcharacter voice\b.*\bunless\b/i,
+                /\baccents?\b.*\btimbres?\b.*\bstyl(e|es|ing)\b/i,
+                // V5.1 Enhanced patterns for comprehensive detection
+                /age stage,?\s*(?:pitch|accent|timbre)/i,
+                /pitch,?\s*(?:accent|timbre)/i,
+                /(?:pitch|accent|timbre),?\s*(?:and\s+)?(?:pitch|accent|timbre)/i,
+                /(?:same\s+)?age stage\b/i,
+                /\bexplicit\s+(?:future|time-skip)/i,
+                /\bunless\s+explicit\b/i,
+                /\bexplicit\s+future\/time-skip\b/i,
+                /(?:and\s+)?speaking\s+style\b/i,
+                /\b timbre\b/i,
+                /\b timbre,? and\b/i,
+                // Catch the full phrase patterns that commonly leak
+                /same\s+age\s+stage.*pitch.*accent/i,
+                /pitch.*accent.*timbre.*speaking\s+style/i,
+                /age\s+stage.*(?:pitch|accent|timbre).*speaking/i
+            ];
+            return contaminationPatterns.some(pattern => pattern.test(dialogue));
+        }
+
+
+        function isUsableDisplayName(name) {
+            // V5.1 (Isu #12): reject names that look like initialisms, single
+            // letters, filenames, or generic placeholders. Previously a
+            // character sheet that had only "R" in big text at the top
+            // produced a speaker label of "R: ..." which the user found
+            // unrecognizable. Require at least 2 alphabetic characters OR a
+            // name with 2+ word segments (e.g. "Risma"). Also reject any
+            // token that smells like a system/AI generated label.
+            const t = String(name || '').trim();
+            if (!t) return false;
+            if (t.length < 2) return false;
+            if (/^[A-Z]$/.test(t)) return false;
+            if (/^[A-Z]\.?$/.test(t)) return false;
+            if (/^(?:character|person|image|img|photo|foto|sheet|model|reference|ref|poster|prompt|render|export|storyboard|story|board|new|final|ai|user|admin|guest|none|n\/a|unknown|anon|anonymous)\b/i.test(t)) return false;
+            if (/\d/.test(t)) return false;
+            return /[a-zA-ZÀ-ɏ]/.test(t);
+        }
+
+        function resolveSpeakerNameInDialogue(text, identity) {
+            if (!text) return '';
+            const chars = (identity && Array.isArray(identity.characters)) ? identity.characters : [];
+            const nameById = {};
+            chars.forEach((c, idx) => {
+                if (!c) return;
+                const id = (c.characterId || ('CHARACTER_' + (idx + 1))).toUpperCase();
+                const realName = c.speakerName || c.name || '';
+                if (isUsableDisplayName(realName)) nameById[id] = realName;
+            });
+            if (!Object.keys(nameById).length) return text;
+            // Match every CHARACTER_N: token in the text (not just line start) so
+            // pasted blocks where newlines were collapsed into spaces still resolve.
+            return String(text).replace(/(?:\[[^\]]+\]\s*)?(CHARACTER_\d+)(\s*:)/gi, (match, id, suffix) => {
+                const realName = nameById[id.toUpperCase()];
+                if (!realName) return match;
+                const bracket = match.indexOf('[') === 0 ? match.match(/^\[[^\]]+\]\s*/)[0] : '';
+                return bracket + realName + suffix;
+            });
+        }
+
+        function reverseResolveSpeakerNameInDialogue(text, identity) {
+            if (!text) return '';
+            const chars = (identity && Array.isArray(identity.characters)) ? identity.characters : [];
+            const idByName = {};
+            chars.forEach((c, idx) => {
+                if (!c) return;
+                const id = (c.characterId || ('CHARACTER_' + (idx + 1))).toUpperCase();
+                const realName = c.speakerName || c.name || '';
+                if (isUsableDisplayName(realName)) {
+                    // Match the name as a whole word (case-insensitive) to avoid replacing substrings
+                    idByName[realName.toLowerCase()] = id;
+                }
+            });
+            const names = Object.keys(idByName);
+            if (!names.length) return text;
+            return String(text).split('\n').map(line => {
+                const prefixMatch = line.match(/^(\s*(?:\[[^\]]+\]\s*)?)([A-Za-z][A-Za-z0-9_'\-\.]*)?(\s*:.*)$/);
+                if (!prefixMatch) return line;
+                const typed = String(prefixMatch[2] || '').trim().toLowerCase();
+                if (!typed) return line;
+                const resolvedId = idByName[typed];
+                if (!resolvedId) return line;
+                if (/^character_\d+$/i.test(typed)) return line;
+                return prefixMatch[1] + resolvedId + prefixMatch[3];
+            }).join('\n');
+        }
+
+        // V5.1 (Isu #6): ask Gemini Vision to OCR the title/name from the
+        // character sheet image. Returns a normalized name (e.g. "RISMA")
+        // or empty string when nothing readable is found. Cached on
+        // ref.extractedName so we only pay the API cost once per upload.
+        async function extractCharacterSheetNameFromImage(ref) {
+            if (!ref || !ref.dataUrl) return '';
+            if (ref.extractedName) return ref.extractedName;
+            const match = String(ref.dataUrl).match(/^data:(image\/[a-z0-9+.-]+);base64,(.+)$/i);
+            if (!match) return '';
+            try {
+                const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent';
+                const requestBody = {
+                    contents: [{ role: 'user', parts: [
+                        { text: 'Look at this character sheet image. Find the name/title of the model written inside the image (usually at the top in big text, e.g. "RISMA", "TONI", "SITI"). Reply with ONLY that single name in the original casing. If you cannot find any clear name text, reply with the single word NONE.' },
+                        { inlineData: { mimeType: match[1], data: match[2] } }
+                    ] }],
+                    generationConfig: { responseMimeType: 'text/plain', temperature: 0, maxOutputTokens: 32 }
+                };
+                const response = await fetchWithExponentialBackoff(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                }, 2, 30000);
+                if (!response || !response.ok) return '';
+                const data = await response.json();
+                const raw = String(data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+                const cleaned = raw.replace(/^["'`]+|["'`]+$/g, '').replace(/\s+/g, ' ').trim();
+                if (!cleaned || /^(none|n\/a|unknown|unclear|nama tidak ditemukan| tidak ada)$/i.test(cleaned)) return '';
+                const normalized = normalizeCharacterName(cleaned);
+                if (normalized) {
+                    ref.extractedName = normalized;
+                    return normalized;
+                }
+                return '';
+            } catch (err) {
+                console.warn('[V5.1 Character OCR] failed:', err && err.message);
+                return '';
+            }
+        }
+
+        // V5.1 (Isu #6): scan the full characterReference array and OCR any
+        // sheets that don't already have an extractedName. Safe to call
+        // repeatedly: extracted names are cached on the ref object. Used
+        // right after the user uploads character photos and right before
+        // any director call so the registered names are always fresh.
+        async function refreshCharacterSheetNames(config) {
+            const refs = (config && config.characterReference) || (state && state.characterReference) || [];
+            for (let i = 0; i < refs.length; i++) {
+                const ref = refs[i];
+                if (!ref || !ref.dataUrl) continue;
+                if (ref.extractedName) continue;
+                // Best-effort OCR in parallel; failures are silent.
+                try {
+                    await extractCharacterSheetNameFromImage(ref);
+                } catch (_) { /* ignore */ }
+            }
+        }
+
+
+        let episodeLastPositioning = null;
+        function recordEpisodeLastPositioning(scene) {
+            if (!scene || !scene.positioning || !scene.positioning.characters) return;
+            // Deep-copy so later mutations on the source scene don't leak in.
+            episodeLastPositioning = JSON.parse(JSON.stringify(scene.positioning));
+        }
+        function clearEpisodeLastPositioning() { episodeLastPositioning = null; }
+
+        // V5.1 (Positioning Lock): derive and freeze each character's body
+        // position (sitting/standing/leaning), screen position (left/center/right),
+        // facing direction, and the world-fixed sun/light direction for the
+        // current scene. The lock is ADAPTIVE: when the current scene's prompt
+        // explicitly describes a position or location change (e.g. "mereka
+        // pindah ke belakang mobil", "kini mereka berdiri", "mereka berjalan
+        // ke arah matahari terbenam") the helper respects that change. When no
+        // change is described, the previous scene's layout is inherited so the
+        // characters stay sitting side-by-side, the sun stays where it was,
+        // and eyelines do not flip mid-conversation.
+        function buildPositioningLock(scene, prevScene, identity, config) {
+            if (!scene) return '';
+            const chars = (identity && Array.isArray(identity.characters)) ? identity.characters : [];
+            if (!chars.length) return '';
+            const visualPlan = (scene.sceneVisualPlan && typeof scene.sceneVisualPlan === 'object') ? scene.sceneVisualPlan : {};
+            const visualText = String(visualPlan.visualAction || visualPlan.summary || '');
+            const sceneText = String(scene.title || '') + ' ' + String(scene.sceneBeat || '') + ' ' + String(scene.storyPurpose || '') + ' ' + visualText;
+            const t = sceneText.toLowerCase();
+            // Detect explicit position change cues. Any of these means the
+            // current scene is allowed to depart from the previous layout.
+            const positionChangeRe = /\b(pindah|berpindah|bergerak|berjalan|keluar|masuk|naik|turun|berdiri|bangun|drop|switch|tukar|balik\s+arah|turn\s+around|facing\s+the\s+other|jalan\s+ke|menuju|now\s+standing|now\s+sitting|sits\s+down|stands\s+up|get\s+out|get\s+in|move\s+to|walks\s+to|enters|exits)\b/i;
+            const sunChangeRe = /\b(sun\s+rise|sun\s+set|sunset|sunrise|matahari|terbenam|terbit|golden\s+hour|pagi|siang|sore|malam|dawn|dusk|night|day|evening|morning)\b/i;
+            const sceneChangeRe = /\b(scene\s+changes|scene\s+shift|location\s+change|to\s+the\s+\w+|moved\s+to|now\s+at|berlokasi|di\s+\w+\s+(?:lain|baru|beda))\b/i;
+            const explicitChange = positionChangeRe.test(t) || sunChangeRe.test(t) || sceneChangeRe.test(t);
+
+            // Derive the current scene's positioning. If the Director did not
+            // write scene.positioning explicitly, fall back to (a) a smart
+            // inference from the visual plan, then (b) the previous scene's
+            // positioning, so the layout stays locked across cuts.
+            const prevPositioning = (prevScene && prevScene.positioning && typeof prevScene.positioning === 'object') ? prevScene.positioning : null;
+            const currentPositioning = (scene.positioning && typeof scene.positioning === 'object') ? scene.positioning : null;
+
+            // Pose detection
+            function detectPose(text) {
+                if (/\b(duduk|sitting|seated|nongkrong)\b/i.test(text)) return 'sitting';
+                if (/\b(berdiri|standing|berdiri\s+di)\b/i.test(text)) return 'standing';
+                if (/\b(berjalan|walking|jalan)\b/i.test(text)) return 'walking';
+                if (/\b(berjongkok|squatting|crouching)\b/i.test(text)) return 'squatting';
+                if (/\b(bersandar|leaning)\b/i.test(text)) return 'leaning';
+                return null;
+            }
+            // Facing detection (8-point compass + camera-relative)
+            function detectFacing(text) {
+                const s = text.toLowerCase();
+                if (/\b(hadap\s+kamera|menghadap\s+kamera|face\s+the\s+camera|toward\s+the\s+camera|ke\s+kamera)\b/.test(s)) return 'camera';
+                if (/\b(hadap\s+barat|west|menghadap\s+barat|toward\s+the\s+sunset|facing\s+west)\b/.test(s)) return 'west';
+                if (/\b(hadap\s+timur|east|toward\s+the\s+sunrise)\b/.test(s)) return 'east';
+                if (/\b(hadap\s+utara|north)\b/.test(s)) return 'north';
+                if (/\b(hadap\s+selatan|south)\b/.test(s)) return 'south';
+                if (/\b(saling\s+berhadapan|menghadap\s+satu\s+sama\s+lain|facing\s+each\s+other|face[-\s]to[-\s]face|across\s+from\s+each\s+other)\b/.test(s)) return 'toward-each-other';
+                if (/\b(membelakangi\s+kamera|back\s+to\s+the\s+camera|backs\s+turned|with\s+their\s+backs)\b/.test(s)) return 'away-from-camera';
+                return null;
+            }
+            // Screen position (where on screen the character sits)
+            function detectScreenPosition(text) {
+                const s = text.toLowerCase();
+                if (/\b(seat\s+kanan|right\s+seat|kursi\s+kanan|sisi\s+kanan|di\s+kanan|on\s+the\s+right|to\s+the\s+right|right[-\s]side)\b/.test(s)) return 'right';
+                if (/\b(seat\s+kiri|left\s+seat|kursi\s+kiri|sisi\s+kiri|di\s+kiri|on\s+the\s+left|to\s+the\s+left|left[-\s]side)\b/.test(s)) return 'left';
+                if (/\b(tengah|center|middle|di\s+tengah)\b/.test(s)) return 'center';
+                if (/\b(berdiri\s+di\s+belakang|standing\s+behind|behind|di\s+belakang)\b/.test(s)) return 'back';
+                if (/\b(berdiri\s+di\s+depan|standing\s+in\s+front|in\s+front|di\s+depan)\b/.test(s)) return 'front';
+                return null;
+            }
+            // Sun / key light direction
+            function detectSun(text) {
+                const s = text.toLowerCase();
+                if (/\b(sunset|terbenam|golden\s+hour|sore|evening|sun\s+setting)\b/.test(s)) return 'west';
+                if (/\b(sunrise|terbit|pagi|dawn|morning)\b/.test(s)) return 'east';
+                if (/\b(siang|afternoon|midday)\b/.test(s)) return 'overhead';
+                if (/\b(malam|night)\b/.test(s)) return 'none';
+                return null;
+            }
+            // Vehicle / seat relationship
+            function detectVehicleRelationship(text) {
+                const s = text.toLowerCase();
+                if (/\b(depan\s+sama[-\s]an|side[-\s]by[-\s]side|sebaris|same\s+row|kursi\s+depan|front\s+seats|driver|supir|sopir|setir|setir\s+kiri|setir\s+kanan)\b/.test(s)) return 'side-by-side';
+                if (/\b(berhadapan|face[-\s]to[-\s]face|across\s+from)\b/.test(s)) return 'face-to-face';
+                if (/\b(berurutan|one\s+behind|antri|same\s+line|sebaris\s+vertikal)\b/.test(s)) return 'one-behind-other';
+                if (/\b(berjauhan|far\s+apart|apart|terpisah|jauh)\b/.test(s)) return 'apart';
+                if (/\b(berdampingan|side[-\s]by[-\s]side|bersebelahan|dekat\s+sama)\b/.test(s)) return 'side-by-side';
+                return null;
+            }
+            // Driver vs passenger detection
+            function detectSeatRole(text, characterIndex) {
+                const s = text.toLowerCase();
+                const charMentionsDriver = /driver|supir|sopir|setir|mengemudi|mengendarai/.test(s);
+                const charMentionsPassenger = /penumpang|passenger|kursi\s+kanan|seat\s+kanan|kanan\s+depan/.test(s);
+                if (charMentionsDriver && !charMentionsPassenger) {
+                    if (characterIndex === 0) return { seatRole: 'driver', screenPosition: 'left' };
+                    return { seatRole: 'passenger', screenPosition: 'right' };
+                }
+                if (charMentionsPassenger && !charMentionsDriver) {
+                    if (characterIndex === 0) return { seatRole: 'passenger', screenPosition: 'right' };
+                    return { seatRole: 'driver', screenPosition: 'left' };
+                }
+                return null;
+            }
+
+            // Build the per-scene position map. Priority:
+            // 1) explicit scene.positioning
+            // 2) detection from visual plan / scene beat text
+            // 3) inheritance from prev scene (same episode), or from the last
+            //    scene of the previous episode when this is episode 2+
+            // 4) sensible default per character
+            const crossEpisodePositioning = (!prevPositioning && typeof episodeLastPositioning !== 'undefined' && episodeLastPositioning) ? episodeLastPositioning : null;
+            const effectivePrevPositioning = prevPositioning || crossEpisodePositioning;
+            const positionMap = {};
+            chars.forEach((c, idx) => {
+                const id = c.characterId || ('CHARACTER_' + (idx + 1));
+                const name = c.speakerName || c.name || id;
+                const curEntry = currentPositioning && (currentPositioning.characters || {})[id];
+                const prevEntry = effectivePrevPositioning && (effectivePrevPositioning.characters || {})[id];
+                // Detect driver/passenger role BEFORE pose so the car-interior
+                // default screen position is consistent with who's driving.
+                const seatRole = detectSeatRole(visualText, idx);
+                const pose = (curEntry && curEntry.pose)
+                    || detectPose(visualText)
+                    || (prevEntry && prevEntry.pose)
+                    || (idx === 0 ? 'standing' : 'standing');
+                const facing = (curEntry && curEntry.facing)
+                    || detectFacing(visualText)
+                    || (prevEntry && prevEntry.facing)
+                    || 'toward-each-other';
+                const screenPos = (curEntry && curEntry.screenPosition)
+                    || (seatRole && seatRole.screenPosition)
+                    || detectScreenPosition(visualText)
+                    || (prevEntry && prevEntry.screenPosition)
+                    || (idx === 0 ? 'left' : 'right');
+                positionMap[id] = { name, pose, facing, screenPosition: screenPos, seatRole: seatRole ? seatRole.seatRole : ((prevEntry && prevEntry.seatRole) || null) };
+            });
+
+            // Spatial layout / vehicle relationship
+            const layout = (currentPositioning && currentPositioning.spatialLayout)
+                || detectVehicleRelationship(visualText)
+                || (effectivePrevPositioning && effectivePrevPositioning.spatialLayout)
+                || 'side-by-side';
+            // Sun / key light
+            const sun = (currentPositioning && currentPositioning.sunDirection)
+                || detectSun(visualText)
+                || (effectivePrevPositioning && effectivePrevPositioning.sunDirection)
+                || 'overhead';
+
+            // Persist derived positioning back onto the scene so downstream
+            // tools (audit, regeneration) see the same value.
+            scene.positioning = {
+                characters: positionMap,
+                spatialLayout: layout,
+                sunDirection: sun,
+                explicitChange: explicitChange
+            };
+
+            // Build the prompt text.
+            const lines = [];
+            lines.push('[POSITIONING — locked for this scene. Inherit from previous scene unless the scene prompt explicitly says the position changed.]');
+            Object.keys(positionMap).forEach(id => {
+                const p = positionMap[id];
+                const facingText = p.facing === 'toward-each-other' ? 'facing the other character (eyeline partner)' :
+                                   p.facing === 'camera' ? 'facing the camera' :
+                                   p.facing === 'away-from-camera' ? 'back to the camera' :
+                                   'facing ' + p.facing;
+                const seatText = p.seatRole ? ' (' + p.seatRole + ' seat)' : '';
+                lines.push('- ' + p.name + ': ' + p.pose + seatText + ', screen-' + p.screenPosition + ', ' + facingText + '.');
+            });
+            // Add an explicit car-seat assignment line if any character is in a vehicle seat
+            const driverEntry = Object.values(positionMap).find(p => p.seatRole === 'driver');
+            const passengerEntry = Object.values(positionMap).find(p => p.seatRole === 'passenger');
+            if (driverEntry && passengerEntry) {
+                lines.push('VEHICLE LOCK: ' + driverEntry.name + ' = DRIVER (left seat, behind steering wheel). ' + passengerEntry.name + ' = PASSENGER (right seat). Do NOT swap them. Do NOT mirror the car interior.');
+            } else if (driverEntry) {
+                lines.push('VEHICLE LOCK: ' + driverEntry.name + ' = DRIVER. The other character is NOT driving.');
+            } else if (passengerEntry) {
+                lines.push('VEHICLE LOCK: ' + passengerEntry.name + ' = PASSENGER. The other character is NOT in the passenger seat.');
+            }
+            lines.push('- Spatial layout: ' + layout + '.');
+            lines.push('- Sun / key light: ' + sun + '.');
+            lines.push('ABSOLUTE POSITION RULES:');
+            lines.push('- Do NOT swap their seats, sides, or screen positions within this scene.');
+            lines.push('- Do NOT make one character face the camera while the other faces away — eyelines must be consistent.');
+            lines.push('- Do NOT flip the sun direction. The sun stays where this lock says it is for the whole scene.');
+            lines.push('- SEAT ASSIGNMENT IS FROZEN PER SCENE: if CHARACTER_1 is in the LEFT seat and CHARACTER_2 is in the RIGHT seat, they MUST stay in those exact seats for the entire duration of this scene. Do NOT swap, mirror, or rotate the seating. Each character owns exactly one seat and one screen side.');
+            lines.push('- EYELINE COUPLING: when CHARACTER_1 speaks, CHARACTER_1 is looking at CHARACTER_2. When CHARACTER_2 speaks, CHARACTER_2 is looking at CHARACTER_1. The direction of the look is the OPPOSITE of the speaking turn (listener looks at speaker). Do NOT make both characters look the same direction; do NOT make either look at the camera.');
+            lines.push('- POSE PERSISTENCE: if a character was sitting in the previous scene and this scene does not explicitly say "berdiri" / "bangun" / "stands up" / "gets up", the character STAYS SITTING. Do NOT change pose mid-scene without an explicit in-scene action.');
+            lines.push('- SUN ANCHOR IS ABSOLUTE: the sun/key-light direction listed below is the ONLY valid direction for this scene. Every panel must show shadows and rim-lights consistent with this direction. Reversing the sun = full scene failure.');
+            if (!explicitChange && prevPositioning) {
+                lines.push('- This scene continues the layout from the previous scene. The character positions, eyelines, and sun direction must match the prior scene unless the scene prompt itself states a clear position change. If a previous scene showed CHARACTER_1 on the LEFT and CHARACTER_2 on the RIGHT, this scene must show the same.');
+            } else if (!explicitChange && crossEpisodePositioning) {
+                lines.push('- CROSS-EPISODE INHERITANCE: this is the opening scene of a new episode, but the character positions, eyelines, and sun direction must MATCH the last scene of the previous episode. If the previous episode ended with CHARACTER_1 on the LEFT (window) and CHARACTER_2 on the RIGHT (aisle), this scene must show the same. Do NOT silently flip them.');
+            } else {
+                lines.push('- This scene describes an explicit position or lighting change. Apply the new layout cleanly from frame 0. Do NOT partially apply the change — every character must reach the new pose by the end of the first shot.');
+            }
+            return lines.join('\n');
+        }
+
+
+        function buildPerSecondTimeline(scene, config) {
+            const duration = Math.max(1, parseInt(String(config && config.durationPerScene || '10').match(/\d+/)?.[0] || '10', 10));
+            const shots = Array.isArray(scene && scene.shots) ? scene.shots : [];
+            if (!shots.length) return '';
+            // Extract dialogue lines with speaker + time stamp (if present in dialoguePlan or dialogue)
+            const dialogueLines = String(scene.dialogueOrNarration || '')
+                .split('\n')
+                .map(line => line.replace(/\[fokus pada aksi\]\s*/i, '').trim())
+                .filter(Boolean);
+            // Build per-shot seconds breakdown
+            const lines = [`[PER-SECOND TIMELINE — EXECUTE EXACTLY AS LISTED, ${duration}s total]`];
+            lines.push('Frame 0 (00:00.000) opens directly on Shot 1 at full-screen — never show the storyboard image.');
+            shots.forEach(shot => {
+                const start = Number.isFinite(Number(shot.startTime)) ? Number(shot.startTime) : 0;
+                const end = Number.isFinite(Number(shot.endTime)) ? Number(shot.endTime) : start + (duration / Math.max(1, shots.length));
+                const secStart = Math.max(0, Math.floor(start));
+                const secEnd = Math.max(secStart, Math.ceil(end));
+                for (let s = secStart; s < secEnd && s < duration; s++) {
+                    const isStart = s === secStart;
+                    const isEnd = s === secEnd - 1;
+                    let line = `Second ${s} (${String(s).padStart(2, '0')}:${isStart ? '00' : '00'}-${String(s).padStart(2, '0')}:${isEnd ? '99' : '99'}): SHOT ${shot.shotNumber}`;
+                    line += ` — ACTION: ${shot.action || 'perform the specified scene action'}`;
+                    line += ` — CAMERA: ${shot.camera || 'motivated continuous camera movement'}`;
+                    if (shot.dialogueLine) line += ` — DIALOGUE: ${shot.dialogueLine}`;
+                    lines.push(line);
+                }
+            });
+            // Attach dialogue as its own second-block when it has no shot
+            if (dialogueLines.length) {
+                lines.push('[DIALOGUE TIMELINE — perform each line during the seconds listed below]');
+                const perLineSeconds = Math.max(1, Math.floor(duration / Math.max(1, dialogueLines.length)));
+                dialogueLines.slice(0, duration).forEach((dLine, i) => {
+                    const s = Math.min(duration - 1, i * perLineSeconds);
+                    lines.push(`Second ${s} (${String(s).padStart(2, '0')}:00): DIALOGUE — ${dLine}`);
+                });
+            }
+            lines.push('Every second must visibly match the action, camera, and dialogue listed for that timestamp.');
+            return lines.join('\n');
+        }
+
+        // V5.2: extract just the [DIALOGUE TIMELINE] sub-block from a full
+        // [PER-SECOND TIMELINE] so the lightweight recompile path can rebuild
+        // only the dialogue mapping without touching shot-level actions. This
+        // is what makes the video generator follow the user's edited dialog
+        // (otherwise the original AI-generated lines stay hard-coded inside
+        // the per-second timeline even after Simpan Dialog).
+        function buildDialogueTimelineOnly(scene, config) {
+            const duration = Math.max(1, parseInt(String(config && config.durationPerScene || '10').match(/\d+/)?.[0] || '10', 10));
+            const dialogueLines = String(scene.dialogueOrNarration || '')
+                .split('\n')
+                .map(line => line.replace(/\[fokus pada aksi\]\s*/i, '').trim())
+                .filter(Boolean);
+            if (!dialogueLines.length) return '';
+            const lines = ['[DIALOGUE TIMELINE — perform each line during the seconds listed below]'];
+            const perLineSeconds = Math.max(1, Math.floor(duration / Math.max(1, dialogueLines.length)));
+            dialogueLines.slice(0, duration).forEach((dLine, i) => {
+                const s = Math.min(duration - 1, i * perLineSeconds);
+                lines.push(`Second ${s} (${String(s).padStart(2, '0')}:00): DIALOGUE — ${dLine}`);
+            });
+            return lines.join('\n');
+        }
+
+        function replaceDialogueTimelineInPrompt(prompt, newDialogueTimeline) {
+            if (!prompt) return prompt;
+            const src = String(prompt);
+            // Match the [DIALOGUE TIMELINE ...] heading through to the closing
+            // "Every second must visibly match..." sentence (or end of input).
+            const re = /\[DIALOGUE TIMELINE[^\]]*\][\s\S]*?(?=Every second must visibly match|\s*$)/i;
+            if (re.test(src)) {
+                if (!newDialogueTimeline) {
+                    return src.replace(re, '').replace(/\n{3,}/g, '\n\n');
+                }
+                return src.replace(re, newDialogueTimeline + '\n\n').replace(/\n{3,}/g, '\n\n');
+            }
+            // No existing dialogue timeline: insert before the closing "Every
+            // second must visibly match..." line so the structure stays valid.
+            const closingRe = /(Every second must visibly match[^\n]*)/i;
+            if (newDialogueTimeline && closingRe.test(src)) {
+                return src.replace(closingRe, newDialogueTimeline + '\n\n' + '$1');
+            }
+            return src;
+        }
+
+
+        // (Gen Z). Other languages (formal Indonesian, English, regional)
+        // pass through unchanged so the user's writing in those modes is
+        // never mutated without their consent.
+        function isJakselLanguage(config) {
+            const lang = String((config && config.language) || '').toLowerCase();
+            return /^indonesian|bahasa\s*indonesia/i.test(lang) && /gen\s*z/i.test(lang);
+        }
+
+        function enforceJakselLoGuePronouns(value, config) {
+            if (!isJakselLanguage(config)) return String(value || '');
+            const src = String(value || '');
+            if (!src) return src;
+            // Match a speaker line: optional [emotion] tag + speaker label
+            // (CHARACTER_N / VOICEOVER / NARRATOR / SOUND DESIGN) + colon,
+            // then the spoken text inside a double-quoted string.
+            const lineRe = /^(\s*(?:\[[^\]]+\]\s*)?(?:CHARACTER_\d+|VOICEOVER|NARRATOR|SOUND DESIGN)\s*:\s*")([^"]*)(".*)$/i;
+            // Ordered rules: longest / most-specific patterns first so we
+            // never double-rewrite. First person ("saya / aku") -> "gue",
+            // second person ("kamu / Anda") -> "loe". Kami/kita is kept
+            // (Jakarta slang uses "kita" for first-person plural anyway).
+            const firstPersonRules = [
+                [/\bsaya\s+akan\b/gi, 'gue bakal'],
+                [/\bsaya\s+(?:telah|sudah)\s+(\w+)/gi, 'gue udh $1'],
+                [/\bsaya\s+(?:telah|sudah)\b/gi, 'gue udh'],
+                [/\bsaya\s+belum\b/gi, 'gue blm'],
+                [/\bsaya\s+tidak\s+(akan|bisa|mau|ingin|perlu|pernah)?/gi, 'gue ga $1'],
+                [/\bsaya\s+tidak\b/gi, 'gue ga'],
+                [/\bsaya\s+takkan\b/gi, 'gue kagak bakal'],
+                [/\bsaya\s+(?:ingin|berharap|mau)\s+(?:pergi|jalan|masuk|keluar|pulang)?/gi, 'gue mau $1'],
+                [/\bsaya\s+ingin\b/gi, 'gue mau'],
+                [/\bsaya\s+(?:harus|perlu|wajib)\b/gi, 'gue kudu'],
+                [/\bsaya\s+(?:bisa|sanggup|mampu)\b/gi, 'gue bisa'],
+                [/\bsaya\s+(?:sudah|pernah|selalu|sering|juga)\b/gi, (m) => `gue ${m.slice(5).trim()}`],
+                [/\bsaya\s+(?:punya|memiliki|tau|tahu|liat|lihat|denger|dengar|rasain|rasakan|coba|berani|mulai|berhenti|berangkat|pulang|pergi|datang|naik|turun|makan|minum|tidur|bangun|mandi|kerja|belajar)\b/gi, (m) => `gue ${m.slice(5).trim()}`],
+                [/\bsaya\s+(?:kepengen|kepingin)\b/gi, 'gue kepengen'],
+                [/\bsaya\s+(?:cuma|cuma mau)\b/gi, 'gue doang'],
+                [/\bsaya\s+(?:sangat|amat|banget|sekali)\b/gi, 'gue banget'],
+                [/\bsaya\s+([a-zà-ÿ]+)/gi, (m, v) => /^(akan|belum|tidak|ingin|mau|harus|perlu|bisa|sudah|pernah|selalu|sering|juga|punya|tau|tahu|liat|lihat|denger|rasain|coba|berani|mulai|berhenti|berangkat|pulang|pergi|datang|naik|turun|makan|minum|tidur|bangun|mandi|kerja|belajar|kepengen|kepingin|doang|sih|kok|ya|loh|kan|yaudah|oke|ok|saja)/i.test(v) ? `gue ${v}` : m],
+                [/\bsaya\b/gi, 'gue']
+            ];
+            const secondPersonRules = [
+                [/\bapa\s+yang\s+kamu\s+(?:mau|ingin|berharap)\b/gi, 'lo mau'],
+                [/\bkamu\s+(?:akan|telah|sudah)\s+(\w+)/gi, 'lo udh $1'],
+                [/\bkamu\s+(?:akan|sudah|selalu|sering|juga)\b/gi, (m) => `lo ${m.slice(5).trim()}`],
+                [/\bkamu\s+belum\b/gi, 'lo blm'],
+                [/\bkamu\s+tidak\s+(\w+)/gi, 'lo ga $1'],
+                [/\bkamu\s+tidak\b/gi, 'lo ga'],
+                [/\bkamu\s+(?:harus|perlu|wajib)\b/gi, 'lo kudu'],
+                [/\bkamu\s+(?:bisa|sanggup|mampu)\b/gi, 'lo bisa'],
+                [/\bkamu\s+(?:punya|tau|tahu|liat|lihat|denger|rasain|coba|berani|mulai|berhenti|pergi|datang|makan|minum|tidur|bangun)\b/gi, (m) => `lo ${m.slice(5).trim()}`],
+                [/\bkamu\s+(?:kepengen|kepingin)\b/gi, 'lo kepengen'],
+                [/\bkamu\s+(?:cuma|cuma mau)\b/gi, 'lo doang'],
+                [/\bkamu\s+(?:sangat|amat|banget|sekali)\b/gi, 'lo banget'],
+                [/\bkamu\s+([a-zà-ÿ]+)/gi, (m, v) => /^(akan|belum|tidak|ingin|mau|harus|perlu|bisa|sudah|pernah|selalu|sering|juga|punya|tau|tahu|liat|lihat|denger|rasain|coba|berani|mulai|berhenti|pergi|datang|makan|minum|tidur|bangun|kepengen|kepingin|doang|sih|kok|loh|kan|yaudah|oke|ok|saja)/i.test(v) ? `lo ${v}` : m],
+                [/\bkamu\b/gi, 'lo'],
+                [/\bAnda\s+(?:bisa|mau|perlu|harus|suka|ingin)\b/gi, (m) => `lo ${m.slice(5).trim()}`],
+                [/\bAnda\s+(?:telah|sudah|selalu|juga)\b/gi, (m) => `lo ${m.slice(5).trim()}`],
+                [/\bAnda\s+tidak\b/gi, 'lo ga'],
+                [/\bAnda\b/gi, 'lo'],
+                [/\bkami\s+(?:akan|sudah|perlu|harus|mau|ingin|bisa|selalu)\b/gi, (m) => `kita ${m.slice(5).trim()}`],
+                [/\bkami\s+tidak\b/gi, 'kita ga'],
+                [/\bkami\b/gi, 'kita']
+            ];
+            return src.split('\n').map(line => {
+                const m = line.match(lineRe);
+                if (!m) return line;
+                const prefix = m[1];
+                const spoken = m[2];
+                const suffix = m[3];
+                let rewritten = spoken;
+                for (const [re, replacement] of firstPersonRules) rewritten = rewritten.replace(re, replacement);
+                for (const [re, replacement] of secondPersonRules) rewritten = rewritten.replace(re, replacement);
+                rewritten = rewritten
+                    .replace(/\buntuk\b/gi, 'buat')
+                    .replace(/\bkarena\b/gi, 'soalnya')
+                    .replace(/\bsebab\b/gi, 'soalnya')
+                    .replace(/\bakan tetapi\b/gi, 'tapi')
+                    .replace(/\btetapi\b/gi, 'tapi')
+                    .replace(/\bnanti saja\b/gi, 'ntar aja')
+                    .replace(/\bsebentar lagi\b/gi, 'ntar')
+                    .replace(/\bbegini\b/gi, 'gini')
+                    .replace(/\bseperti ini\b/gi, 'kayak gini')
+                    .replace(/\bsangat\b/gi, 'banget')
+                    .replace(/\bbanget\b/gi, 'banget')
+                    .replace(/\bsaja\b/gi, 'aja');
+                return prefix + rewritten + suffix;
+            }).join('\n');
+        }
+
+
+
 function applyStoryboardLocks(breakdown, config) {
     if (!breakdown || !Array.isArray(breakdown.scenes)) return;
     restrictSimpleCommercialCast(breakdown, config);
@@ -5378,16 +5930,20 @@ function applyStoryboardLocks(breakdown, config) {
             );
             const formattedDialogue = normalizeDialogueTurnFormat(normalizedDialogue, scene);
             const expressiveDialogue = normalizeDialogueExpressions(formattedDialogue, scene);
-            if (expressiveDialogue) scene.dialogueOrNarration = expressiveDialogue;
+            if (expressiveDialogue && scene.dialogueUserLocked !== true) {
+                scene.dialogueOrNarration = expressiveDialogue;
+            }
             const voiceCastLock = buildVoiceLockBlock(breakdown.masterVisualIdentity);
             const languageDeliveryLock = buildLanguageDeliveryLock(config);
             const audioBlockHead = (languageDeliveryLock || voiceCastLock)
                 ? (languageDeliveryLock ? languageDeliveryLock + '\n\n' : '') + (voiceCastLock ? voiceCastLock + '\n\n' : '')
                 : '';
-            const spokenDialogue = expressiveDialogue
-                || normalizedDialogue
-                || scene.dialogueOrNarration
-                || buildFallbackSceneAudio(scene, config, true);
+            const spokenDialogue = scene.dialogueUserLocked === true
+                ? scene.dialogueOrNarration
+                : (expressiveDialogue
+                    || normalizedDialogue
+                    || scene.dialogueOrNarration
+                    || buildFallbackSceneAudio(scene, config, true));
             const naturalDialogue = deduplicateDialogueLines(toNaturalDialogueFormat(spokenDialogue, breakdown.masterVisualIdentity));
             audioBlock = naturalDialogue
                 ? audioBlockHead + voiceModeLock + '\n[AUDIO / DIALOGUE]\n' + naturalDialogue
@@ -5397,7 +5953,9 @@ function applyStoryboardLocks(breakdown, config) {
             'VIDEO PROMPT — Create one continuous full-screen video from the attached storyboard image. Start at frame 0 with live motion in the scene; the storyboard image is reference-only and must never appear on screen.',
             'SCENE: ' + [scene.title, scene.storyPurpose, scene.sceneBeat, scene.sceneVisualPlan && scene.sceneVisualPlan.visualAction].filter(Boolean).join(' — '),
             buildExplicitShotTimeline(scene, config),
+            (typeof buildPerSecondTimeline === 'function') ? buildPerSecondTimeline(scene, config) : '',
             'SETTING: ' + [scene.locationId, scene.timeOfDay, scene.wardrobeBeat].filter(Boolean).join(' — '),
+            (typeof buildPositioningLock === 'function') ? buildPositioningLock(scene, (sceneIdx > 0 ? breakdown.scenes[sceneIdx - 1] : null), breakdown.masterVisualIdentity, config) : '',
             isDioramaAnimationStyle(config)
                 ? 'CAST: Only miniature-world animated characters at their own small-world scale. No real-life person, photoreal human, life-size body, or giant hands.'
                 : isCreativeMiniatureBuild(config)
@@ -5497,6 +6055,10 @@ function buildSceneAudioBlockOnly(scene, config, identity) {
     if (!dialogueSource) {
         return audioBlockHead + voiceModeLock + (dialogueCastLock ? '\n\n' + dialogueCastLock : '');
     }
+    if (scene.dialogueUserLocked === true) {
+        const lockedDialogue = deduplicateDialogueLines(dialogueSource);
+        return audioBlockHead + voiceModeLock + (dialogueCastLock ? '\n\n' + dialogueCastLock + '\n\n' : '') + '[AUDIO / DIALOGUE]\n' + lockedDialogue;
+    }
     const normalizedDialogue = normalizeDialogueSpeakerTurns(dialogueSource, scene, config, identity);
     const formattedDialogue = normalizeDialogueTurnFormat(normalizedDialogue, scene);
     const expressiveDialogue = normalizeDialogueExpressions(formattedDialogue, scene);
@@ -5532,7 +6094,11 @@ function recompileSceneVideoPromptOnly(breakdown, sceneIdx, config) {
         return scene.masterVideoPrompt;
     }
     const newAudioBlock = buildSceneAudioBlockOnly(scene, config, identity);
-    const updated = replaceAudioBlockInPrompt(previousPrompt, newAudioBlock);
+    let updated = replaceAudioBlockInPrompt(previousPrompt, newAudioBlock);
+    const newDialogueTimeline = (typeof buildDialogueTimelineOnly === 'function') ? buildDialogueTimelineOnly(scene, config) : '';
+    if (typeof replaceDialogueTimelineInPrompt === 'function') {
+        updated = replaceDialogueTimelineInPrompt(updated, newDialogueTimeline);
+    }
     scene.masterVideoPrompt = enforceCleanVideoOpening(deduplicateDialogueLines(updated));
     return scene.masterVideoPrompt;
 }
@@ -6183,6 +6749,7 @@ async function startGeneration() {
         let breakdown;
         const preparationAttempts = (isPlacePromotion(state) || state.storyboardMode === 'drama' || isSilentAudioMode(state)) ? 2 : 1;
         try {
+            await refreshCharacterSheetNames(state);
             for (let preparationAttempt = 0; preparationAttempt < preparationAttempts; preparationAttempt++) {
                 try {
         breakdown = await generateStoryboardBlueprint(state);
@@ -6191,6 +6758,17 @@ async function startGeneration() {
         state.directorData = breakdown;
         normalizeSeriesPlan(breakdown, state);
         if (state.seriesPlan && state.episodeCount > 1) breakdown.seriesPlan = state.seriesPlan;
+        if (Array.isArray(breakdown.scenes)) {
+            breakdown.scenes.forEach((sc, idx) => {
+                try {
+                    if (typeof buildPositioningLock === 'function') {
+                        buildPositioningLock(sc, breakdown.scenes[idx - 1], breakdown.masterVisualIdentity, state);
+                    }
+                } catch (_) {}
+            });
+            const lastScene = breakdown.scenes[breakdown.scenes.length - 1];
+            if (typeof recordEpisodeLastPositioning === 'function') recordEpisodeLastPositioning(lastScene);
+        }
         deferBlueprintDialogueUntilSceneGeneration(breakdown, state);
         validateStoryboardBreakdown(breakdown);
         throwIfStoryboardCancelled();
@@ -9199,6 +9777,7 @@ function startNewStoryboard() {
     state.currentEpisode = 1; state.episodeBible = null; state.seriesPlan = null; state.episodePlate = null; state.episodeSeries = [];
     state.storyboardSessions = {};
     resetProductLock();
+    if (typeof clearEpisodeLastPositioning === 'function') clearEpisodeLastPositioning();
     currentStoryboardHistoryId = null;
     document.getElementById('resultView').classList.add('hidden'); document.getElementById('creatorFormView').classList.remove('hidden');
     updateSummaryPill();
